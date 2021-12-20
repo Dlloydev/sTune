@@ -1,0 +1,55 @@
+##########################################
+# Syntax Coloring Map For sTune Library
+##########################################
+
+##########################################
+# Datatypes (KEYWORD1)
+##########################################
+
+sTune	KEYWORD1
+tuner	KEYWORD1
+
+##########################################
+# Methods and Functions (KEYWORD2)
+##########################################
+
+Configure	KEYWORD2
+Run	KEYWORD2
+Reset	KEYWORD2
+printTestRun	KEYWORD2
+printResults	KEYWORD2
+SetAutoTunings	KEYWORD2
+init	KEYWORD2
+begin	KEYWORD2
+avgVal	KEYWORD2
+startVal	KEYWORD2
+slope	KEYWORD2
+
+##########################################
+# Constants (LITERAL1)
+##########################################
+
+directIp	LITERAL1
+direct5t	LITERAL1
+reverseIp	LITERAL1
+reverse5t	LITERAL1
+serialOff	LITERAL1
+printAll	LITERAL1
+printSummary	LITERAL1
+printDebug	LITERAL1
+plot	LITERAL1
+inOut	LITERAL1
+test	LITERAL1
+tunings	LITERAL1
+runPid	LITERAL1
+timerPid	LITERAL1
+zieglerNicholsPi	LITERAL1
+zieglerNicholsPid	LITERAL1
+tyreusLuybenPi	LITERAL1
+tyreusLuybenPid	LITERAL1
+cianconeMarlinPi	LITERAL1
+cianconeMarlinPid	LITERAL1
+amigofPid	LITERAL1
+pessenIntegralPid	LITERAL1
+someOvershootPid	LITERAL1
+noOvershootPid	LITERAL1

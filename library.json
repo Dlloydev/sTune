@@ -1,0 +1,27 @@
+{
+  "name": "sTune",
+  "version": "1.0.0",
+  "description": "Open loop PID autotuner using a novel s-curve inflection point test method. Tuning parameters are typically determined in about ½Tau on a first-order system with time delay.",
+  "keywords": "PID, autotune, tuning, tuner, tune",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/Dlloydev/sTune"
+  },
+  "authors":
+  [
+    {
+      "name": "David Lloyd",
+      "email": "dlloydev@testcor.ca",
+      "url": "https://github.com/Dlloydev/sTune",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Dlloydev/sTune",
+  "dependencies": {
+    "QuickPID": "~1.0.0"
+  },
+  "frameworks": "arduino",
+  "platforms": "*"
+}
