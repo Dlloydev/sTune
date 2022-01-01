@@ -6,12 +6,12 @@ class sTune {  // Inflection Point Autotuner
 
   public:
 
-    enum Action : uint8_t {directIp, direct5t, reverseIp, reverse5t};
-    enum SerialMode : uint8_t {serialOff, printAll, printSummary, printDebug, plot};
+    enum Action : uint8_t {directIP, direct5T, reverseIP, reverse5T};
+    enum SerialMode : uint8_t {serialOFF, printALL, printSUMMARY, printDEBUG, printPIDTUNER, serialPLOTTER};
     enum TunerStatus : uint8_t {inOut, test, tunings, runPid, timerPid};
-    enum TuningRule : uint8_t { zieglerNicholsPi, zieglerNicholsPid, tyreusLuybenPi, tyreusLuybenPid,
-                                cianconeMarlinPi, cianconeMarlinPid, amigofPid, pessenIntegralPid,
-                                someOvershootPid, noOvershootPid
+    enum TuningRule : uint8_t { zieglerNicholsPI, zieglerNicholsPID, tyreusLuybenPI, tyreusLuybenPID,
+                                cianconeMarlinPI, cianconeMarlinPID, amigofPID, pessenIntegralPID,
+                                someOvershootPID, noOvershootPID
                               };
 
     sTune();
@@ -23,7 +23,27 @@ class sTune {  // Inflection Point Autotuner
     void Reset();
     void printTestRun();
     void printResults();
-    void SetAutoTunings(float* kp, float* ki, float* kd, float* ku, float* tu, float* td);
+    void printPidTuner(uint8_t everyNth);
+    void plotter(float setpoint, uint8_t everyNth);
+
+    // Set functions
+    void SetAutoTunings(float * kp, float * ki, float * kd);
+    void SetControllerAction(Action Action);
+    void SetSerialMode(SerialMode SerialMode);
+    void SetTuningRule(TuningRule TuningRule);
+
+    // Query functions
+    float GetKp();                 // proportional gain
+    float GetKi();                 // integral gain
+    float GetKd();                 // derivative gain
+    float GetProcessGain();        // process gain
+    float GetDeadTime();           // process dead time (seconds)
+    float GetTau();                // process time constant (seconds)
+    float GetTimeIntegral();       // process time integral (seconds)
+    float GetTimeDerivative();     // process time derivative (seconds)
+    uint8_t GetControllerAction();
+    uint8_t GetSerialMode();
+    uint8_t GetTuningRule();
 
   private:
 
@@ -36,12 +56,12 @@ class sTune {  // Inflection Point Autotuner
     float pvInst, pvAvg, pvIp, pvMax, pvPk, pvRes, slopeIp, pvTangent, pvTangentPrev = 0, pvStart;
     float _kp, _ki, _kd, _Ku, _Tu, _td;
 
-    uint8_t dtCount = 0, ipCount = 0;
+    uint8_t dtCount = 0, ipCount = 0, plotCount = 0;
     uint16_t _bufferSize, _samples, sampleCount = 0, pvPkCount = 0;
     uint32_t _settleTimeSec, _testTimeSec, usPrev = 0, settlePrev = 0, usStart, us, ipUs;
 
     const float kexp = 4.3004; // (1 / exp(-1)) / (1 - exp(-1))
-    const float epsilon = 0.0001;
+    const float epsilon = 0.0001f;
 
     const uint16_t RulesContants[10][3] =
     { //kkp,  kki, kkd x 1000
