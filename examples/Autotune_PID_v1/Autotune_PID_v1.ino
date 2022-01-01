@@ -48,8 +48,8 @@ void loop() {
 
   switch (tuner.Run()) {
     case tuner.inOut:
-      Input = (analogRead(inputPin) / mvResolution) - bias;
-      analogWrite(outputPin, Output);
+      input = (analogRead(inputPin) / mvResolution) - bias;
+      analogWrite(outputPin, output);
       break;
 
     case tuner.tunings:
