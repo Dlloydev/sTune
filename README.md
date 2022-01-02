@@ -44,7 +44,7 @@ The slope of the tangent line is checked at every sample. When the sign of the c
 - When the point of inflection is reached, the test ends. The apparent `pvMax` is calculated using:
 
 - ```c++
-  `pvMax = pvIp + slopeIp * kexp;` where  `kexp = 4.3004; // (1 / exp(-1)) / (1 - exp(-1))`
+  pvMax = pvIp + slopeIp * kexp;  // where kexp = 4.3004 = (1 / exp(-1)) / (1 - exp(-1))
   ```
 
 - The process gain `Ku` and time constant `Tu` are determined and the selected tuning rule's constants are used to determine `Kp, Ki and Kd`. Also, `controllability` and other details are provided (see comments in `sTune.cpp`).
