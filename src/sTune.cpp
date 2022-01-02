@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 1.0.0
+   sTune Library for Arduino - Version 1.0.1
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
