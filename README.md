@@ -4,13 +4,13 @@ This is an open loop PID autotuner using a novel s-curve inflection point test m
 
 #### Reaction Curve Inflection Point Tuning Method
 
-This tuning method determines the process gain, dead time and time constant by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the remaining controller settings are calculated. Test duration is typically only ½Tau.  
+This tuning method determines the process gain, dead time and time constant by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.  
 
 #### Inflection Point Discovery
 
 Accurate determination of the inflection point was given high priority for this test method. To accomplish this, a circular buffer for the input readings is created that's sized to 10% of samples. The buffer is used as a moving tangent line where the "head" of the tangent is based on the average of all readings in the buffer and the "tail" is based on the oldest instantaneous value in the buffer. The tangent line slides along the reaction curve where where the head (leading point) moves smoothly but with moderate response, and the tail (trailing point) may have some jitter due to being instantaneous and more easily influenced by noise and input resolution.
 
-The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After `samples/16` samples has occurred with the new slope direction, then the leading tangent point is used as the point of inflection in calculations.
+The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After 1⁄16 samples has occurred with the new slope direction, then it's known that the point of inflection has been reached. Final calculations are made and the test ends.
 
 #### Inflection Point Tuning Method
 
