@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 1.0.2
+   sTune Library for Arduino - Version 1.0.3
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -85,6 +85,7 @@ uint8_t sTune::Run() {
             if (pvDiff > epsilon && pvDiff < pvRes) pvRes = pvDiff;  // check buffered input resolution
 
             if (sampleCount == 0) {                     // initialize at first sample
+              *_output = _outputStart;
               tangent.init(pvInst);
               pvAvg = pvInst;
               pvStart = pvInst;
@@ -198,6 +199,7 @@ uint8_t sTune::Run() {
         }
       } else {  // settling
         if (usElapsed >= _samplePeriodUs) {
+          *_output = _outputStart;
           usPrev = usNow;
           pvInst = *_input;
           if (_serialMode == printALL || _serialMode == printDEBUG) {

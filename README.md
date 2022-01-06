@@ -4,7 +4,9 @@ This is an open loop PID autotuner using a novel s-curve inflection point test m
 
 #### Reaction Curve Inflection Point Tuning Method
 
-This tuning method determines the process gain, dead time and time constant by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.  
+This tuning method determines the process gain, dead time and time constant by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.
+
+- See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more.
 
 #### Inflection Point Discovery
 

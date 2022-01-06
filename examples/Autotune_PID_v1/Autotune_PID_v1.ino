@@ -38,7 +38,7 @@ sTune tuner = sTune(&input, &output, tuner.zieglerNicholsPID, tuner.directIP, tu
                                            noOvershootPID
 */
 void setup() {
-  analogReference(EXTERNAL);
+  analogReference(EXTERNAL); // AVR
   Serial.begin(115200);
   analogWrite(outputPin, outputStart);
   tuner.Configure(outputStart, outputStep, testTimeSec, settleTimeSec, samples);
@@ -46,17 +46,17 @@ void setup() {
 
 void loop() {
 
-  switch (tuner.Run()) {
+  switch (tuner.Run()) {  // active while sTune is testing (non-blocking)
     case tuner.inOut:
       input = (analogRead(inputPin) / mvResolution) - bias;
       analogWrite(outputPin, output);
       break;
 
-    case tuner.tunings:
-      tuner.SetAutoTunings(&kp, &ki, &kd);
-      myPID.SetMode(AUTOMATIC);
-      myPID.SetSampleTime((testTimeSec * 1000) / samples);
-      myPID.SetTunings(kp, ki, kd);
+    case tuner.tunings:                                      // active just once when sTune is done
+      tuner.SetAutoTunings(&kp, &ki, &kd);                   // sketch variables are updated by sTune
+      myPID.SetMode(AUTOMATIC);                              // the PID is turned on (automatic)
+      myPID.SetSampleTime((testTimeSec * 1000) / samples);   // PID sample rate
+      myPID.SetTunings(kp, ki, kd);                          // update PID with the new tunings
       break;
 
     case tuner.runPid:
@@ -65,4 +65,5 @@ void loop() {
       analogWrite(outputPin, Output);
       break;
   }
+  // put your main code here, to run repeatedly
 }
