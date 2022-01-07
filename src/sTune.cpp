@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 1.0.3
+   sTune Library for Arduino - Version 1.1.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -35,16 +35,36 @@ sTune::sTune(float *input, float *output, TuningRule tuningRule, Action action, 
 }
 
 void sTune::Reset() {
+  _tunerStatus = inOut;
+  *_output = _outputStart;
+  usPrev = micros();
+  settlePrev = usPrev;
+  ipUs = 0;
+  us = 0;
   _Ku = 0.0f;
   _Tu = 0.0f;
   _td = 0.0f;
   _kp = 0.0f;
   _ki = 0.0f;
   _kd = 0.0f;
-  _tunerStatus = inOut;
+  pvIp = 0.0f;
+  pvMax = 0.0f;
+  pvPk = 0.0f;
+  slopeIp = 0.0f;
+  pvTangent = 0.0f;
+  pvTangentPrev = 0.0f;
+  pvAvg = pvInst;
+  pvStart = pvInst;
+  pvRes = pvInst;
+  dtCount = 0;
+  ipCount = 0;
+  plotCount = 0;
+  sampleCount = 0;
+  pvPkCount = 0;
 }
 
 void sTune::Configure(const float outputStart, const float outputStep, const uint32_t testTimeSec, const uint32_t settleTimeSec, const uint16_t samples) {
+  sTune::Reset();
   _outputStart = outputStart;
   _outputStep = outputStep;
   _testTimeSec = testTimeSec;
@@ -82,26 +102,15 @@ uint8_t sTune::Run() {
             pvInst = *_input;
             pvAvg = tangent.avgVal(pvInst);
             float pvDiff = abs(pvAvg - lastPvAvg);
+
             if (pvDiff > epsilon && pvDiff < pvRes) pvRes = pvDiff;  // check buffered input resolution
 
             if (sampleCount == 0) {                     // initialize at first sample
-              *_output = _outputStart;
               tangent.init(pvInst);
               pvAvg = pvInst;
-              pvStart = pvInst;
+              pvDiff = 0.0f;
               pvRes = pvInst;
-              pvIp = 0;
-              pvMax = 0;
-              pvPk = 0;
-              slopeIp = 0;
-              pvTangent = 0;
-              pvTangentPrev = 0;
-              ipUs = 0;
-              dtCount = 0;
-              ipCount = 0;
-              pvPkCount = 0;
-              _Tu = 0;
-              _td = 0;
+              pvStart = pvInst;
               usStart = usNow;
               us = 0;
             }
@@ -110,20 +119,19 @@ uint8_t sTune::Run() {
             //https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif
             pvTangent = pvAvg - tangent.startVal();
 
-            bool dtcount = false;
+            // check for dead time
+            bool dt = false;
             if (_action == directIP || _action == direct5T) {
-              if (pvTangent - pvTangentPrev > 0 + epsilon) dtcount = true;
+              (pvTangent - pvTangentPrev > 0 + epsilon) ?  dt = true : dt = false; // pvTangent ↗
             } else { // reverse
-              if (pvTangent - pvTangentPrev < 0 - epsilon) dtcount = true;
+              (pvTangent - pvTangentPrev < 0 - epsilon) ?  dt = true : dt = false; // pvTangent ↘
             }
-            if (dtcount) {
-              dtCount <<= 1;
-              dtCount |= 0x01;
-            }
-            if (dtCount == 0x1F) {  // update deadtime when tangent has increased (or decreased) for 4 samples
+            if (dt) dtCount++;
+            if (dtCount == 4) {  // update deadtime when tangent changes for 4 samples
               _td = us * 0.000001f;
             }
 
+            // check for inflection point
             bool ipcount = false;
             if (_action == directIP || _action == direct5T) {
               if (pvTangent > slopeIp + epsilon) ipcount = true;
@@ -289,8 +297,8 @@ void sTune::printTestRun() {
   if (sampleCount < _samples) {
     if (_serialMode == printALL || _serialMode == printDEBUG) {
       Serial.print(F(" Sec: "));           Serial.print(us * 0.000001f, 5);
+      Serial.print(F("  pvInst: "));       Serial.print(pvInst, 4);
       Serial.print(F("  pvAvg: "));        Serial.print(pvAvg, 4);
-
       if (_serialMode == printDEBUG && (_action == direct5T || _action == reverse5T)) {
         Serial.print(F("  pvPk: "));       Serial.print(pvPk, 4);
         Serial.print(F("  pvPkCount: "));  Serial.print(pvPkCount);
@@ -317,7 +325,7 @@ void sTune::printResults() {
     else if (_action == direct5T) Serial.println(F("direct5T"));
     else if (_action == reverseIP) Serial.println(F("reverseIP"));
     else Serial.println(F("reverse5T"));
-    Serial.print(F(" Tuning Rule: "));
+    Serial.print(F(" Tuning Rule:       "));
     if (_tuningRule == zieglerNicholsPI) Serial.println(F("zieglerNicholsPI"));
     else if (_tuningRule == zieglerNicholsPID) Serial.println(F("zieglerNicholsPID"));
     else if (_tuningRule == tyreusLuybenPI) Serial.println(F("tyreusLuybenPI"));
@@ -329,37 +337,46 @@ void sTune::printResults() {
     else if (_tuningRule == someOvershootPID) Serial.println(F("someOvershootPID"));
     else Serial.println(F("noOvershootPID"));
     Serial.println();
-    Serial.print(F(" Output Start:    "));  Serial.println(_outputStart);
-    Serial.print(F(" Output Step:     "));  Serial.println(_outputStep);
-    Serial.print(F(" Sample Sec:      "));  Serial.println(_samplePeriodUs * 0.000001f, 5);
+    Serial.print(F(" Output Start:      "));  Serial.println(_outputStart);
+    Serial.print(F(" Output Step:       "));  Serial.println(_outputStep);
+    Serial.print(F(" Sample Sec:        "));  Serial.println(_samplePeriodUs * 0.000001f, 5);
     Serial.println();
     if (_serialMode == printDEBUG && (_action == directIP || _action == reverseIP)) {
-      Serial.print(F(" Ip Sec:          "));  Serial.println(ipUs * 0.000001f, 5);
-      Serial.print(F(" Ip Slope:        "));  Serial.print(slopeIp, 4);
+      Serial.print(F(" Ip Sec:            "));  Serial.println(ipUs * 0.000001f, 5);
+      Serial.print(F(" Ip Slope:          "));  Serial.print(slopeIp, 4);
       if (_action == directIP || _action == direct5T) Serial.println(F(" ↑"));
       else  Serial.println(F(" ↓"));
-      Serial.print(F(" Ip Pv:           "));  Serial.println(pvIp, 4);
+      Serial.print(F(" Ip Pv:             "));  Serial.println(pvIp, 4);
     }
-    Serial.print(F(" Pv Start:        "));  Serial.println(pvStart, 4);
-    if (_action == directIP || _action == direct5T) Serial.print(F(" Pv Max:          "));
-    else Serial.print(F(" Pv Min:          "));
+    Serial.print(F(" Pv Start:          "));  Serial.println(pvStart, 4);
+    if (_action == directIP || _action == direct5T) Serial.print(F(" Pv Max:            "));
+    else Serial.print(F(" Pv Min:            "));
     Serial.println(pvMax, 4);
-    Serial.print(F(" Pv Diff:         "));  Serial.println(pvMax - pvStart, 4);
+    Serial.print(F(" Pv Diff:           "));  Serial.println(pvMax - pvStart, 4);
     Serial.println();
-    Serial.print(F(" Process Gain:    "));  Serial.println(_Ku, 4);
-    Serial.print(F(" Dead Time Sec:   "));  Serial.println(_td, 5);
-    Serial.print(F(" Tau Sec:         "));  Serial.println(_Tu, 5);
+    Serial.print(F(" Process Gain:      "));  Serial.println(_Ku, 4);
+    Serial.print(F(" Dead Time Sec:     "));  Serial.println(_td, 5);
+    Serial.print(F(" Tau Sec:           "));  Serial.println(_Tu, 5);
+
     // Controllability https://blog.opticontrols.com/wp-content/uploads/2011/06/td-versus-tau.png
     float controllability = _Tu / _td + epsilon;
     if (controllability > 99.9) controllability = 99.9;
-    if (controllability > 0.75) Serial.print(F(" Easy to control:"));
-    else if (controllability > 0.25) Serial.print(F(" Average controllability:"));
-    else Serial.print(F(" Difficult to control:"));
-    Serial.print(F(" Tau/Dead Time = "));   Serial.println(controllability, 1);
+    Serial.print(F(" Tau/Dead Time:     "));  Serial.print(controllability, 1);
+    if (controllability > 0.75) Serial.println(F(" (easy to control)"));
+    else if (controllability > 0.25) Serial.println(F(" (average controllability)"));
+    else Serial.println(F(" (difficult to control)"));
+
+    // check “best practice” rule that sample time should be ≥ 10 times per process time constant
+    // https://controlguru.com/sample-time-is-a-fundamental-design-and-tuning-specification/
+    float sampleTimeCheck = _Tu / (_samplePeriodUs * 0.000001f);
+    Serial.print(F(" Tau/Sample Period: "));  Serial.print(sampleTimeCheck, 1);
+    if (sampleTimeCheck >= 10) Serial.println(F(" (good sample rate)"));
+    else Serial.println(F(" (low sample rate)"));
+
     Serial.println();
-    Serial.print(F(" Kp:              "));  Serial.println(_kp, 4);
-    Serial.print(F(" Ki:              "));  Serial.println(_ki, 4);
-    Serial.print(F(" Kd:              "));  Serial.println(_kd, 4);
+    Serial.print(F(" Kp:                "));  Serial.println(_kp, 4);
+    Serial.print(F(" Ki:                "));  Serial.println(_ki, 4);
+    Serial.print(F(" Kd:                "));  Serial.println(_kd, 4);
     Serial.println();
   }
   if (_serialMode == printPIDTUNER && (_action == direct5T || _action == reverse5T)) {
