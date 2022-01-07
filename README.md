@@ -38,6 +38,8 @@ The slope of the tangent line is checked at every sample. When the sign of the c
 
 - `outputStep` is the stepped output value used for sample 13 to test completion.
 
+- after test completion, the setup can be updated for the next test and `tuner.Configure()` can be called again.
+
 #### Inflection Point Test
 
 - The `outputStep` value is applied after 12 samples and inflection point discovery begins.
@@ -156,4 +158,5 @@ When the test ends, sTune determines [how difficult](https://blog.opticontrols.c
 - [Ziegler-Nichols Open-Loop Tuning Rules](https://blog.opticontrols.com/archives/477)
 - [Inflection point](https://en.wikipedia.org/wiki/Inflection_point)
 - [Time Constant (Re: Step response with arbitrary initial conditions)](https://en.wikipedia.org/wiki/Time_constant)
+- [Sample Time is a Fundamental Design and Tuning Specification](https://controlguru.com/sample-time-is-a-fundamental-design-and-tuning-specification/)
 
