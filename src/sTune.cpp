@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 1.1.0
+   sTune Library for Arduino - Version 2.0.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -25,10 +25,10 @@ sTune::sTune() {
   sTune::Reset();
 }
 
-sTune::sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialMode serialMode) {
+sTune::sTune(float *input, float *output, TuningMethod tuningMethod, Action action, SerialMode serialMode) {
   _input = input;
   _output = output;
-  _tuningRule = tuningRule;
+  _tuningMethod = tuningMethod;
   _action = action;
   _serialMode = serialMode;
   sTune::Reset();
@@ -63,8 +63,11 @@ void sTune::Reset() {
   pvPkCount = 0;
 }
 
-void sTune::Configure(const float outputStart, const float outputStep, const uint32_t testTimeSec, const uint32_t settleTimeSec, const uint16_t samples) {
+void sTune::Configure(const float inputSpan, const float outputSpan, float outputStart, float outputStep,
+                      uint32_t testTimeSec, uint32_t settleTimeSec, const uint16_t samples) {
   sTune::Reset();
+  _inputSpan = inputSpan;
+  _outputSpan = outputSpan;
   _outputStart = outputStart;
   _outputStep = outputStep;
   _testTimeSec = testTimeSec;
@@ -169,32 +172,25 @@ uint8_t sTune::Run() {
                 if (pvPkCount == ((uint16_t)(1.2 * _bufferSize))) {  // test done (assume 3.5τ)
                   pvPkCount++;
                   sampleCount = _samples;
-                  pvMax = pvAvg + (pvInst - pvStart) * 0.03f;  // add 3% to pvAvg
-                  _Tu = (us * 0.000001f * 0.286f) - _td;        // multiply by 0.286 for τ
+                  pvMax = pvAvg + (pvInst - pvStart) * 0.03f;  // add 3% to pvMax
+                  _Tu = (us * 0.000001f * 0.286f) - _td;       // multiply by 0.286 for τ
                 }
               }
             }
 
             if (sampleCount == _samples) {  // testing complete
 
-              // calculate the process gain
-              _Ku = abs((pvMax - pvStart) / (_outputStep - _outputStart));
+              _TuMin = _Tu * 0.1667; // units in minutes
+              _tdMin = _td * 0.1667; // units in minutes
+              _R = _tdMin / _TuMin;
+              _Ku =  abs(((pvMax - pvStart) / _inputSpan) / ((_outputStep - _outputStart) / _outputSpan)); // process gain
+              _Ko = ((_outputStep - _outputStart) / pvMax) * (_TuMin / _tdMin); // process gain
 
-              // apply tuning rule constants
-              if (_tuningRule == amigofPID) {
-                (_td < 0.1) ? _td = 0.1 : _td = _td;
-                _kp = (0.2 + 0.45 * (_Tu / _td)) / _Ku;
-                float Ti = (((0.4 * _td) + (0.8 * _Tu)) / (_td + (0.1 * _Tu)) * _td);
-                float Td = (0.5 * _td * _Tu) / ((0.3 * _td) + _Tu);
-                _ki = _kp / Ti;
-                _kd = Td * _kp;
-              } else { //other rules
-                _kp = abs((float)(RulesContants[_tuningRule][0] * 0.001f) * _Ku);
-                _ki = abs((float)((RulesContants[_tuningRule][1] * 0.001f) * _Ku) / (_Tu / 60.0f));
-                _kd = abs((float)((RulesContants[_tuningRule][2] * 0.001f) * _Ku) * (_Tu / 60.0f));
-              }
+              _kp = sTune::GetKp();
+              _ki = sTune::GetKi();
+              _kd = sTune::GetKd();
+
               sTune::printResults();
-              *_output = _outputStart;
               _tunerStatus = tunings;
               return tunings;
               break;
@@ -252,12 +248,6 @@ uint8_t sTune::Run() {
   return timerPid;
 }
 
-void sTune::SetAutoTunings(float * kp, float * ki, float * kd) {
-  *kp = _kp;
-  *ki = _ki;
-  *kd = _kd;
-}
-
 void sTune::SetControllerAction(Action Action) {
   _action = Action;
 }
@@ -266,8 +256,8 @@ void sTune::SetSerialMode(SerialMode SerialMode) {
   _serialMode = SerialMode;
 }
 
-void sTune::SetTuningRule(TuningRule TuningRule) {
-  _tuningRule = TuningRule;
+void sTune::SetTuningMethod(TuningMethod TuningMethod) {
+  _tuningMethod = TuningMethod;
 }
 
 void sTune::printPidTuner(uint8_t everyNth) {
@@ -284,12 +274,14 @@ void sTune::printPidTuner(uint8_t everyNth) {
 }
 
 void sTune::plotter(float setpoint, uint8_t everyNth) {
-  if (plotCount >= everyNth) {
-    plotCount = 1;
-    Serial.print(F("Setpoint:"));  Serial.print(setpoint);        Serial.print(F(", "));
-    Serial.print(F("Input:"));     Serial.print(*_input);         Serial.print(F(", "));
-    Serial.print(F("Output:"));    Serial.print(*_output * 0.5);  Serial.println(F(","));
-  } else plotCount++;
+  if (_serialMode == serialPLOTTER) {
+    if (plotCount >= everyNth) {
+      plotCount = 1;
+      Serial.print(F("Setpoint:"));  Serial.print(setpoint);        Serial.print(F(", "));
+      Serial.print(F("Input:"));     Serial.print(*_input);         Serial.print(F(", "));
+      Serial.print(F("Output:"));    Serial.print(*_output * 0.5);  Serial.println(F(","));
+    } else plotCount++;
+  }
 }
 
 void sTune::printTestRun() {
@@ -311,8 +303,6 @@ void sTune::printTestRun() {
       if (pvTangent - pvTangentPrev > 0 + epsilon)      Serial.println(F(" ↗"));
       else if (pvTangent - pvTangentPrev < 0 - epsilon) Serial.println(F(" ↘"));
       else                                              Serial.println(F(" →"));
-    } else if (_serialMode == serialPLOTTER) {
-      Serial.print(F("pvAvg ")); Serial.println(pvAvg, 4);
     }
   }
 }
@@ -325,17 +315,17 @@ void sTune::printResults() {
     else if (_action == direct5T) Serial.println(F("direct5T"));
     else if (_action == reverseIP) Serial.println(F("reverseIP"));
     else Serial.println(F("reverse5T"));
-    Serial.print(F(" Tuning Rule:       "));
-    if (_tuningRule == zieglerNicholsPI) Serial.println(F("zieglerNicholsPI"));
-    else if (_tuningRule == zieglerNicholsPID) Serial.println(F("zieglerNicholsPID"));
-    else if (_tuningRule == tyreusLuybenPI) Serial.println(F("tyreusLuybenPI"));
-    else if (_tuningRule == tyreusLuybenPID) Serial.println(F("tyreusLuybenPID"));
-    else if (_tuningRule == cianconeMarlinPI) Serial.println(F("cianconeMarlinPI"));
-    else if (_tuningRule == cianconeMarlinPID) Serial.println(F("cianconeMarlinPID"));
-    else if (_tuningRule == amigofPID) Serial.println(F("amigofPID"));
-    else if (_tuningRule == pessenIntegralPID) Serial.println(F("pessenIntegralPID"));
-    else if (_tuningRule == someOvershootPID) Serial.println(F("someOvershootPID"));
-    else Serial.println(F("noOvershootPID"));
+    Serial.print(F(" Tuning Method:     "));
+    if (_tuningMethod == ZN_PID) Serial.println(F("ZN_PID"));
+    else if (_tuningMethod == ZN_Half_PID) Serial.println(F("ZN_Half_PID"));
+    else if (_tuningMethod == Damped_PID) Serial.println(F("Damped_PID"));
+    else if (_tuningMethod == NoOvershoot_PID) Serial.println(F("NoOvershoot_PID"));
+    else if (_tuningMethod == CohenCoon_PID) Serial.println(F("CohenCoon_PID"));
+    else if (_tuningMethod == ZN_PI) Serial.println(F("ZN_PI"));
+    else if (_tuningMethod == ZN_Half_PI) Serial.println(F("ZN_Half_PI"));
+    else if (_tuningMethod == Damped_PI) Serial.println(F("Damped_PI"));
+    else if (_tuningMethod == NoOvershoot_PI) Serial.println(F("NoOvershoot_PI"));
+    else Serial.println(F("CohenCoon_PI"));
     Serial.println();
     Serial.print(F(" Output Start:      "));  Serial.println(_outputStart);
     Serial.print(F(" Output Step:       "));  Serial.println(_outputStep);
@@ -357,6 +347,7 @@ void sTune::printResults() {
     Serial.print(F(" Process Gain:      "));  Serial.println(_Ku, 4);
     Serial.print(F(" Dead Time Sec:     "));  Serial.println(_td, 5);
     Serial.print(F(" Tau Sec:           "));  Serial.println(_Tu, 5);
+    Serial.println();
 
     // Controllability https://blog.opticontrols.com/wp-content/uploads/2011/06/td-versus-tau.png
     float controllability = _Tu / _td + epsilon;
@@ -372,11 +363,11 @@ void sTune::printResults() {
     Serial.print(F(" Tau/Sample Period: "));  Serial.print(sampleTimeCheck, 1);
     if (sampleTimeCheck >= 10) Serial.println(F(" (good sample rate)"));
     else Serial.println(F(" (low sample rate)"));
-
     Serial.println();
-    Serial.print(F(" Kp:                "));  Serial.println(_kp, 4);
-    Serial.print(F(" Ki:                "));  Serial.println(_ki, 4);
-    Serial.print(F(" Kd:                "));  Serial.println(_kd, 4);
+
+    Serial.print(F(" Kp: "));  Serial.println(_kp, 4);
+    Serial.print(F(" Ki: "));  Serial.println(_ki, 4);
+    Serial.print(F(" Kd: "));  Serial.println(_kd, 4);
     Serial.println();
   }
   if (_serialMode == printPIDTUNER && (_action == direct5T || _action == reverse5T)) {
@@ -390,36 +381,78 @@ void sTune::printResults() {
 
 // Query functions
 
+void sTune::GetAutoTunings(float * kp, float * ki, float * kd) {
+  *kp = _kp;
+  *ki = _ki;
+  *kd = _kd;
+}
+
 float sTune::GetKp() {
+  if (_tuningMethod == ZN_PID)                _kp = (1.2f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == ZN_Half_PID)      _kp = (0.6f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == Damped_PID)       _kp = (0.66f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == NoOvershoot_PID)  _kp = (0.6f / _Ku) * (_TuMin / _tdMin);
+  else if (_tuningMethod == CohenCoon_PID)    _kp = _Ko * (1.33f + (_R / 4.0f));
+  else if (_tuningMethod == ZN_PI)            _kp = (0.9f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == ZN_Half_PI)       _kp = (0.45f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == Damped_PI)        _kp = (0.495f * _TuMin) / (_Ko * _tdMin);
+  else if (_tuningMethod == NoOvershoot_PI)   _kp = (0.35f / _Ku) * (_TuMin / _tdMin);
+  else                                        _kp = _Ko * (0.9f + (_R / 12.0f)); // CohenCoon_PI
   return _kp;
 }
+
 float sTune::GetKi() {
+  if (_tuningMethod == ZN_PID)                _ki = 1 / (2.0f * _tdMin);
+  else if (_tuningMethod == ZN_Half_PID)      _ki = 1 / (4.0f * _tdMin);
+  else if (_tuningMethod == Damped_PID)       _ki = 1 / (_TuMin / 3.6f);
+  else if (_tuningMethod == NoOvershoot_PID)  _ki = 1 / (_TuMin);
+  else if (_tuningMethod == CohenCoon_PID)    _ki = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
+  else if (_tuningMethod == ZN_PI)            _ki = 1 / (3.3333f * _tdMin);
+  else if (_tuningMethod == ZN_Half_PI)       _ki = 1 / (6.6667f * _tdMin);
+  else if (_tuningMethod == Damped_PI)        _ki = 1 / (_TuMin / 2.6f);
+  else if (_tuningMethod == NoOvershoot_PI)   _ki = 1 / (1.2f * _TuMin);
+  else                                        _ki = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R))); // CohenCoon_PI
   return _ki;
 }
+
 float sTune::GetKd() {
+  if (_tuningMethod == ZN_PID)                _kd = 1 / (0.5f * _tdMin);
+  else if (_tuningMethod == ZN_Half_PID)      _kd = 1 / (1.0f * _tdMin);
+  else if (_tuningMethod == Damped_PID)       _kd = 1 / (_TuMin / 9.0f);
+  else if (_tuningMethod == NoOvershoot_PID)  _kd = 1 / (0.5f * _tdMin);
+  else if (_tuningMethod == CohenCoon_PID)    _kd = 1 / ((4.0f * _tdMin) / (11.0f + (2.0f * _R)));
+  else                                        _kd = 0.0f; // PI controller
   return _kd;
 }
+
 float sTune::GetProcessGain() {
   return _Ku;
 }
+
 float sTune::GetDeadTime() {
   return _td;
 }
+
 float sTune::GetTau() {
   return _Tu;
 }
+
 float sTune::GetTimeIntegral() {
   return 1.0f / _ki;
 }
+
 float sTune::GetTimeDerivative() {
   return 1.0f / _kd;
 }
+
 uint8_t sTune::GetControllerAction() {
   return static_cast<uint8_t>(_action);
 }
+
 uint8_t sTune::GetSerialMode() {
   return static_cast<uint8_t>(_serialMode);
 }
-uint8_t sTune::GetTuningRule() {
-  return static_cast<uint8_t>(_tuningRule);
+
+uint8_t sTune::GetTuningMethod() {
+  return static_cast<uint8_t>(_tuningMethod);
 }

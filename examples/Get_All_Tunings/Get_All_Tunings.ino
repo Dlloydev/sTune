@@ -1,10 +1,9 @@
 /********************************************************************
-   Autotune QuickPID Example (using Temperature Control Lab)
+   sTune Get All Tunings Example (using Temperature Control Lab)
    http://apmonitor.com/pdc/index.php/Main/ArduinoTemperatureControl
  ********************************************************************/
 
 #include <sTune.h>
-#include <QuickPID.h>
 
 // pins
 const uint8_t inputPin = 0;
@@ -24,13 +23,7 @@ const float mvResolution = 3300 / 1024.0f;
 const float bias = 50;
 
 // test variables
-float Input = 0, Output = 0, Setpoint = 30, Kp = 0, Ki = 0, Kd = 0;
-
-QuickPID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd,
-               myPID.pMode::pOnError,
-               myPID.dMode::dOnMeas,
-               myPID.iAwMode::iAwClamp,
-               myPID.Action::direct);
+float Input = 0, Output = 0;
 
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
 /*                                         ZN_PID        directIP        serialOFF
@@ -47,29 +40,58 @@ sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printAL
 void setup() {
   analogReference(EXTERNAL); // AVR
   Serial.begin(115200);
+  delay(5000);
   analogWrite(outputPin, outputStart);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
 }
 
 void loop() {
-  switch (tuner.Run()) {  // active while sTune is testing
+
+  switch (tuner.Run()) {
     case tuner.inOut:
       Input = (analogRead(inputPin) / mvResolution) - bias;
       analogWrite(outputPin, Output);
       break;
 
-    case tuner.tunings:                                          // active just once when sTune is done
-      tuner.GetAutoTunings(&Kp, &Ki, &Kd);                       // sketch variables updated by sTune
-      myPID.SetMode(myPID.Control::automatic);                   // the PID is turned on (automatic)
-      myPID.SetSampleTimeUs((testTimeSec * 1000000) / samples);  // PID sample rate
-      myPID.SetTunings(Kp, Ki, Kd);                              // update PID with the new tunings
-      break;
-
-    case tuner.runPid:  // this case runs once per sample period after case "tunings"
-      Input = (analogRead(inputPin) / mvResolution) - bias;
-      myPID.Compute();
-      analogWrite(outputPin, Output);
+    case tuner.tunings:
+      analogWrite(outputPin, 0);
+      tuner.SetTuningMethod(tuner.TuningMethod::ZN_PID);
+      Serial.println(F(" ZN_PID"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::ZN_Half_PID);
+      Serial.println(F(" ZN_Half_PID"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::Damped_PID);
+      Serial.println(F(" Damped_PID"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::NoOvershoot_PID);
+      Serial.println(F(" NoOvershoot_PID"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::CohenCoon_PID);
+      Serial.println(F(" CohenCoon_PID"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::ZN_PI);
+      Serial.println(F(" ZN_PI"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::ZN_Half_PI);
+      Serial.println(F(" ZN_Half_PI"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::Damped_PI);
+      Serial.println(F(" Damped_PI"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::NoOvershoot_PI);
+      Serial.println(F(" NoOvershoot_PI"));
+      PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::CohenCoon_PI);
+      Serial.println(F(" CohenCoon_PI"));
+      PrintTunings();
       break;
   }
-  // put your main code here, to run repeatedly
+}
+
+void PrintTunings() {
+  Serial.print(F("  Kp: ")); Serial.println(tuner.GetKp());
+  Serial.print(F("  Ki: ")); Serial.println(tuner.GetKi());
+  Serial.print(F("  Kd: ")); Serial.println(tuner.GetKd());
+  Serial.println();
 }

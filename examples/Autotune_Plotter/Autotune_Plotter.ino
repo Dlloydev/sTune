@@ -1,10 +1,10 @@
 /********************************************************************
-   Autotune PID_v1 Example (using Temperature Control Lab)
+   Autotune Plotter Example (using Temperature Control Lab)
    http://apmonitor.com/pdc/index.php/Main/ArduinoTemperatureControl
  ********************************************************************/
 
 #include <sTune.h>
-#include <PID_v1.h>
+#include <QuickPID.h>
 
 // pins
 const uint8_t inputPin = 0;
@@ -24,12 +24,15 @@ const float mvResolution = 3300 / 1024.0f;
 const float bias = 50;
 
 // test variables
-double Input = 0, Output = 0, Setpoint = 30; // myPID
-float input = 0, output = 0, kp = 0, ki = 0, kd = 0; // tuner
+float Input = 0, Output = 0, Setpoint = 30, Kp = 0, Ki = 0, Kd = 0;
 
-PID myPID(&Input, &Output, &Setpoint, 0, 0, 0, DIRECT);
+QuickPID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd,
+               myPID.pMode::pOnError,
+               myPID.dMode::dOnMeas,
+               myPID.iAwMode::iAwClamp,
+               myPID.Action::direct);
 
-sTune tuner = sTune(&input, &output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
+sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.serialPLOTTER);
 /*                                         ZN_PID        directIP        serialOFF
                                            ZN_Half_PID   direct5T        printALL
                                            Damped_PID    reverseIP       printSUMMARY
@@ -49,24 +52,24 @@ void setup() {
 }
 
 void loop() {
-
   switch (tuner.Run()) {  // active while sTune is testing
     case tuner.inOut:
-      input = (analogRead(inputPin) / mvResolution) - bias;
-      analogWrite(outputPin, output);
+      Input = (analogRead(inputPin) / mvResolution) - bias;
+      analogWrite(outputPin, Output);
       break;
 
-    case tuner.tunings:                                      // active just once when sTune is done
-      tuner.GetAutoTunings(&kp, &ki, &kd);                   // sketch variables updated by sTune
-      myPID.SetMode(AUTOMATIC);                              // the PID is turned on (automatic)
-      myPID.SetSampleTime((testTimeSec * 1000) / samples);   // PID sample rate
-      myPID.SetTunings(kp, ki, kd);                          // update PID with the new tunings
+    case tuner.tunings:                                          // active just once when sTune is done
+      tuner.GetAutoTunings(&Kp, &Ki, &Kd);                       // sketch variables updated by sTune
+      myPID.SetMode(myPID.Control::automatic);                   // the PID is turned on (automatic)
+      myPID.SetSampleTimeUs((testTimeSec * 1000000) / samples);  // PID sample rate
+      myPID.SetTunings(Kp, Ki, Kd);                              // update PID with the new tunings
       break;
 
     case tuner.runPid:  // this case runs once per sample period after case "tunings"
       Input = (analogRead(inputPin) / mvResolution) - bias;
       myPID.Compute();
       analogWrite(outputPin, Output);
+      tuner.plotter(Setpoint, 10); // plots every 10th sample
       break;
   }
   // put your main code here, to run repeatedly
