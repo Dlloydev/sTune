@@ -29,17 +29,17 @@ float input = 0, output = 0, kp = 0, ki = 0, kd = 0; // tuner
 
 PID myPID(&Input, &Output, &Setpoint, 0, 0, 0, DIRECT);
 
-sTune tuner = sTune(&input, &output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
-/*                                         ZN_PID        directIP        serialOFF
-                                           ZN_Half_PID   direct5T        printALL
-                                           Damped_PID    reverseIP       printSUMMARY
-                                           NoOvershoot_PID reverse5T     printDEBUG
-                                           CohenCoon_PID                 printPIDTUNER
-                                           ZN_PI                         serialPLOTTER
-                                           ZN_Half_PI
-                                           Damped_PI
+sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
+/*                                         ZN_PID           directIP        serialOFF
+                                           DampedOsc_PID    direct5T        printALL
+                                           NoOvershoot_PID  reverseIP       printSUMMARY
+                                           CohenCoon_PID    reverse5T       printDEBUG
+                                           Mixed_PID
+                                           ZN_PI
+                                           DampedOsc_PI
                                            NoOvershoot_PI
                                            CohenCoon_PI
+                                           Mixed_PI
 */
 void setup() {
   analogReference(EXTERNAL); // AVR
@@ -58,8 +58,9 @@ void loop() {
 
     case tuner.tunings:                                      // active just once when sTune is done
       tuner.GetAutoTunings(&kp, &ki, &kd);                   // sketch variables updated by sTune
-      myPID.SetMode(AUTOMATIC);                              // the PID is turned on (automatic)
       myPID.SetSampleTime((testTimeSec * 1000) / samples);   // PID sample rate
+      Output = 0;                                            // required before switching PID to Automatic
+      myPID.SetMode(AUTOMATIC);                              // the PID is turned on (automatic)
       myPID.SetTunings(kp, ki, kd);                          // update PID with the new tunings
       break;
 

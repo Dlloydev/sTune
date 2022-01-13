@@ -25,17 +25,17 @@ const float bias = 50;
 // test variables
 float Input = 0, Output = 0;
 
-sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
-/*                                         ZN_PID        directIP        serialOFF
-                                           ZN_Half_PID   direct5T        printALL
-                                           Damped_PID    reverseIP       printSUMMARY
-                                           NoOvershoot_PID reverse5T     printDEBUG
-                                           CohenCoon_PID                 printPIDTUNER
-                                           ZN_PI                         serialPLOTTER
-                                           ZN_Half_PI
-                                           Damped_PI
+sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
+/*                                         ZN_PID           directIP        serialOFF
+                                           DampedOsc_PID    direct5T        printALL
+                                           NoOvershoot_PID  reverseIP       printSUMMARY
+                                           CohenCoon_PID    reverse5T       printDEBUG
+                                           Mixed_PID
+                                           ZN_PI
+                                           DampedOsc_PI
                                            NoOvershoot_PI
                                            CohenCoon_PI
+                                           Mixed_PI
 */
 void setup() {
   analogReference(EXTERNAL); // AVR
@@ -58,11 +58,8 @@ void loop() {
       tuner.SetTuningMethod(tuner.TuningMethod::ZN_PID);
       Serial.println(F(" ZN_PID"));
       PrintTunings();
-      tuner.SetTuningMethod(tuner.TuningMethod::ZN_Half_PID);
-      Serial.println(F(" ZN_Half_PID"));
-      PrintTunings();
-      tuner.SetTuningMethod(tuner.TuningMethod::Damped_PID);
-      Serial.println(F(" Damped_PID"));
+      tuner.SetTuningMethod(tuner.TuningMethod::DampedOsc_PID);
+      Serial.println(F(" DampedOsc_PID"));
       PrintTunings();
       tuner.SetTuningMethod(tuner.TuningMethod::NoOvershoot_PID);
       Serial.println(F(" NoOvershoot_PID"));
@@ -70,14 +67,14 @@ void loop() {
       tuner.SetTuningMethod(tuner.TuningMethod::CohenCoon_PID);
       Serial.println(F(" CohenCoon_PID"));
       PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::Mixed_PID);
+      Serial.println(F(" Mixed_PID"));
+      PrintTunings();
       tuner.SetTuningMethod(tuner.TuningMethod::ZN_PI);
       Serial.println(F(" ZN_PI"));
       PrintTunings();
-      tuner.SetTuningMethod(tuner.TuningMethod::ZN_Half_PI);
-      Serial.println(F(" ZN_Half_PI"));
-      PrintTunings();
-      tuner.SetTuningMethod(tuner.TuningMethod::Damped_PI);
-      Serial.println(F(" Damped_PI"));
+      tuner.SetTuningMethod(tuner.TuningMethod::DampedOsc_PI);
+      Serial.println(F(" DampedOsc_PI"));
       PrintTunings();
       tuner.SetTuningMethod(tuner.TuningMethod::NoOvershoot_PI);
       Serial.println(F(" NoOvershoot_PI"));
@@ -85,13 +82,16 @@ void loop() {
       tuner.SetTuningMethod(tuner.TuningMethod::CohenCoon_PI);
       Serial.println(F(" CohenCoon_PI"));
       PrintTunings();
+      tuner.SetTuningMethod(tuner.TuningMethod::Mixed_PI);
+      Serial.println(F(" Mixed_PI"));
+      PrintTunings();
       break;
   }
 }
 
 void PrintTunings() {
   Serial.print(F("  Kp: ")); Serial.println(tuner.GetKp());
-  Serial.print(F("  Ki: ")); Serial.println(tuner.GetKi());
-  Serial.print(F("  Kd: ")); Serial.println(tuner.GetKd());
+  Serial.print(F("  Ki: ")); Serial.print(tuner.GetKi()); Serial.print(F("  Ti: ")); Serial.println(tuner.GetTi());
+  Serial.print(F("  Kd: ")); Serial.print(tuner.GetKd()); Serial.print(F("  Td: ")); Serial.println(tuner.GetTd());
   Serial.println();
 }

@@ -7,11 +7,11 @@ class sTune {  // Inflection Point Autotuner
   public:
 
     enum Action : uint8_t {directIP, direct5T, reverseIP, reverse5T};
-    enum SerialMode : uint8_t {serialOFF, printALL, printSUMMARY, printDEBUG, printPIDTUNER, serialPLOTTER};
+    enum SerialMode : uint8_t {serialOFF, printALL, printSUMMARY, printDEBUG};
     enum TunerStatus : uint8_t {inOut, test, tunings, runPid, timerPid};
-    enum TuningMethod : uint8_t { ZN_PID, ZN_Half_PID, Damped_PID, NoOvershoot_PID, CohenCoon_PID,
-                                ZN_PI, ZN_Half_PI, Damped_PI, NoOvershoot_PI, CohenCoon_PI
-                              };
+    enum TuningMethod : uint8_t { ZN_PID, DampedOsc_PID, NoOvershoot_PID, CohenCoon_PID, Mixed_PID,
+                                  ZN_PI, DampedOsc_PI, NoOvershoot_PI, CohenCoon_PI, Mixed_PI
+                                };
     sTune();
     sTune(float *input, float *output, TuningMethod tuningMethod, Action action, SerialMode serialMode);
     ~sTune() {};
@@ -23,7 +23,7 @@ class sTune {  // Inflection Point Autotuner
     void printTestRun();
     void printResults();
     void printPidTuner(uint8_t everyNth);
-    void plotter(float setpoint, uint8_t everyNth);
+    void plotter(float setpoint, float outputScale = 1, uint8_t everyNth = 1, bool average = false);
 
     // Set functions
     void SetControllerAction(Action Action);
@@ -34,11 +34,11 @@ class sTune {  // Inflection Point Autotuner
     float GetKp();                  // proportional gain
     float GetKi();                  // integral gain
     float GetKd();                  // derivative gain
+    float GetTi();                  // integral time
+    float GetTd();                  // derivative time
     float GetProcessGain();         // process gain
     float GetDeadTime();            // process dead time (seconds)
     float GetTau();                 // process time constant (seconds)
-    float GetTimeIntegral();        // process time integral (seconds)
-    float GetTimeDerivative();      // process time derivative (seconds)
     uint8_t GetControllerAction();
     uint8_t GetSerialMode();
     uint8_t GetTuningMethod();

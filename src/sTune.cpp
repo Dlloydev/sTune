@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.0.0
+   sTune Library for Arduino - Version 2.1.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -198,7 +198,6 @@ uint8_t sTune::Run() {
             sTune::printTestRun();
             pvTangentPrev = pvTangent;
           } else _tunerStatus = tunings;
-          sTune::printPidTuner(10);
           sampleCount++;
         }
       } else {  // settling
@@ -261,27 +260,25 @@ void sTune::SetTuningMethod(TuningMethod TuningMethod) {
 }
 
 void sTune::printPidTuner(uint8_t everyNth) {
-  if (_serialMode == printPIDTUNER && (_action == direct5T || _action == reverse5T)) {
-    if (sampleCount < _samples) {
-      if (plotCount == 0 || plotCount >= everyNth) {
-        plotCount = 1;
-        Serial.print(us * 0.000001f, 5);  Serial.print(F(", "));
-        Serial.print(*_output);           Serial.print(F(", "));
-        Serial.println(pvAvg);
-      } else plotCount++;
-    }
+  if (sampleCount < _samples) {
+    if (plotCount == 0 || plotCount >= everyNth) {
+      plotCount = 1;
+      Serial.print(us * 0.000001f, 5);  Serial.print(F(", "));
+      Serial.print(*_output);           Serial.print(F(", "));
+      Serial.println(pvAvg);
+    } else plotCount++;
   }
 }
 
-void sTune::plotter(float setpoint, uint8_t everyNth) {
-  if (_serialMode == serialPLOTTER) {
-    if (plotCount >= everyNth) {
-      plotCount = 1;
-      Serial.print(F("Setpoint:"));  Serial.print(setpoint);        Serial.print(F(", "));
-      Serial.print(F("Input:"));     Serial.print(*_input);         Serial.print(F(", "));
-      Serial.print(F("Output:"));    Serial.print(*_output * 0.5);  Serial.println(F(","));
-    } else plotCount++;
-  }
+void sTune::plotter(float setpoint, float outputScale, uint8_t everyNth, bool average) {
+  pvInst = *_input;
+  pvAvg = tangent.avgVal(pvInst);
+  if (plotCount >= everyNth) {
+    plotCount = 1;
+    Serial.print(F("Setpoint:"));  Serial.print(setpoint);                   Serial.print(F(", "));
+    Serial.print(F("Input:"));     Serial.print((average) ? pvAvg : pvInst); Serial.print(F(", "));
+    Serial.print(F("Output:"));    Serial.print(*_output * outputScale);     Serial.println(F(","));
+  } else plotCount++;
 }
 
 void sTune::printTestRun() {
@@ -317,15 +314,15 @@ void sTune::printResults() {
     else Serial.println(F("reverse5T"));
     Serial.print(F(" Tuning Method:     "));
     if (_tuningMethod == ZN_PID) Serial.println(F("ZN_PID"));
-    else if (_tuningMethod == ZN_Half_PID) Serial.println(F("ZN_Half_PID"));
-    else if (_tuningMethod == Damped_PID) Serial.println(F("Damped_PID"));
+    else if (_tuningMethod == DampedOsc_PID) Serial.println(F("Damped_PID"));
     else if (_tuningMethod == NoOvershoot_PID) Serial.println(F("NoOvershoot_PID"));
     else if (_tuningMethod == CohenCoon_PID) Serial.println(F("CohenCoon_PID"));
+    else if (_tuningMethod == Mixed_PID) Serial.println(F("Mixed_PID"));
     else if (_tuningMethod == ZN_PI) Serial.println(F("ZN_PI"));
-    else if (_tuningMethod == ZN_Half_PI) Serial.println(F("ZN_Half_PI"));
-    else if (_tuningMethod == Damped_PI) Serial.println(F("Damped_PI"));
+    else if (_tuningMethod == DampedOsc_PI) Serial.println(F("Damped_PI"));
     else if (_tuningMethod == NoOvershoot_PI) Serial.println(F("NoOvershoot_PI"));
-    else Serial.println(F("CohenCoon_PI"));
+    else if (_tuningMethod == CohenCoon_PI) Serial.println(F("CohenCoon_PI"));
+    else Serial.println(F("Mixed_PI"));
     Serial.println();
     Serial.print(F(" Output Start:      "));  Serial.println(_outputStart);
     Serial.print(F(" Output Step:       "));  Serial.println(_outputStep);
@@ -364,17 +361,10 @@ void sTune::printResults() {
     if (sampleTimeCheck >= 10) Serial.println(F(" (good sample rate)"));
     else Serial.println(F(" (low sample rate)"));
     Serial.println();
-
-    Serial.print(F(" Kp: "));  Serial.println(_kp, 4);
-    Serial.print(F(" Ki: "));  Serial.println(_ki, 4);
-    Serial.print(F(" Kd: "));  Serial.println(_kd, 4);
+    Serial.print(F("  Kp: ")); Serial.println(sTune::GetKp());
+    Serial.print(F("  Ki: ")); Serial.print(sTune::GetKi()); Serial.print(F("  Ti: ")); Serial.println(sTune::GetTi());
+    Serial.print(F("  Kd: ")); Serial.print(sTune::GetKd()); Serial.print(F("  Td: ")); Serial.println(sTune::GetTd());
     Serial.println();
-  }
-  if (_serialMode == printPIDTUNER && (_action == direct5T || _action == reverse5T)) {
-    Serial.println();
-    Serial.print(F("Kp ")); Serial.println(_kp, 4);
-    Serial.print(F("Ti ")); Serial.println(1.0f / _ki, 4);
-    Serial.print(F("Td ")); Serial.println(1.0f / _kd, 4);
     sampleCount++;
   }
 }
@@ -388,41 +378,75 @@ void sTune::GetAutoTunings(float * kp, float * ki, float * kd) {
 }
 
 float sTune::GetKp() {
-  if (_tuningMethod == ZN_PID)                _kp = (1.2f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == ZN_Half_PID)      _kp = (0.6f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == Damped_PID)       _kp = (0.66f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == NoOvershoot_PID)  _kp = (0.6f / _Ku) * (_TuMin / _tdMin);
-  else if (_tuningMethod == CohenCoon_PID)    _kp = _Ko * (1.33f + (_R / 4.0f));
-  else if (_tuningMethod == ZN_PI)            _kp = (0.9f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == ZN_Half_PI)       _kp = (0.45f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == Damped_PI)        _kp = (0.495f * _TuMin) / (_Ko * _tdMin);
-  else if (_tuningMethod == NoOvershoot_PI)   _kp = (0.35f / _Ku) * (_TuMin / _tdMin);
-  else                                        _kp = _Ko * (0.9f + (_R / 12.0f)); // CohenCoon_PI
+  float znPid = (0.6f * _TuMin) / (_Ko * _tdMin);
+  float doPid = (0.66f * _TuMin) / (_Ko * _tdMin);
+  float noPid = (0.6f / _Ku) * (_TuMin / _tdMin);
+  float ccPid = _Ko * (1.33f + (_R / 4.0f));
+  float znPi = (0.45f * _TuMin) / (_Ko * _tdMin);
+  float doPi = (0.495f * _TuMin) / (_Ko * _tdMin);
+  float noPi = (0.35f / _Ku) * (_TuMin / _tdMin);
+  float ccPi = _Ko * (0.9f + (_R / 12.0f));
+  if (_tuningMethod == ZN_PID)                _kp = znPid;
+  else if (_tuningMethod == DampedOsc_PID)    _kp = doPid;
+  else if (_tuningMethod == NoOvershoot_PID)  _kp = noPid;
+  else if (_tuningMethod == CohenCoon_PID)    _kp = ccPid;
+  else if (_tuningMethod == Mixed_PID)        _kp = 0.25f * (znPid + doPid + noPid + ccPid);
+  else if (_tuningMethod == ZN_PI)            _kp = znPi;
+  else if (_tuningMethod == DampedOsc_PI)     _kp = doPi;
+  else if (_tuningMethod == NoOvershoot_PI)   _kp = noPi;
+  else if (_tuningMethod == CohenCoon_PI)     _kp = ccPi;
+  else                                        _kp = 0.25f * (znPi + doPi + noPi + ccPi); // Mixed_PI
   return _kp;
 }
 
 float sTune::GetKi() {
-  if (_tuningMethod == ZN_PID)                _ki = 1 / (2.0f * _tdMin);
-  else if (_tuningMethod == ZN_Half_PID)      _ki = 1 / (4.0f * _tdMin);
-  else if (_tuningMethod == Damped_PID)       _ki = 1 / (_TuMin / 3.6f);
-  else if (_tuningMethod == NoOvershoot_PID)  _ki = 1 / (_TuMin);
-  else if (_tuningMethod == CohenCoon_PID)    _ki = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
-  else if (_tuningMethod == ZN_PI)            _ki = 1 / (3.3333f * _tdMin);
-  else if (_tuningMethod == ZN_Half_PI)       _ki = 1 / (6.6667f * _tdMin);
-  else if (_tuningMethod == Damped_PI)        _ki = 1 / (_TuMin / 2.6f);
-  else if (_tuningMethod == NoOvershoot_PI)   _ki = 1 / (1.2f * _TuMin);
-  else                                        _ki = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R))); // CohenCoon_PI
+  float znPid = 1 / (4.0f * _tdMin);
+  float doPid = 1 / (_TuMin / 3.6f);
+  float noPid = 1 / (_TuMin);
+  float ccPid = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
+  float znPi = 1 / (6.6667f * _tdMin);
+  float doPi = 1 / (_TuMin / 2.6f);
+  float noPi = 1 / (1.2f * _TuMin);
+  float ccPi = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
+
+  if (_tuningMethod == ZN_PID)                _ki = znPid;
+  else if (_tuningMethod == DampedOsc_PID)    _ki = doPid;
+  else if (_tuningMethod == NoOvershoot_PID)  _ki = noPid;
+  else if (_tuningMethod == CohenCoon_PID)    _ki = ccPid;
+  else if (_tuningMethod == Mixed_PID)        _ki = 0.25f * (znPid + doPid + noPid + ccPid);
+  else if (_tuningMethod == ZN_PI)            _ki = znPi;
+  else if (_tuningMethod == DampedOsc_PI)     _ki = doPi;
+  else if (_tuningMethod == NoOvershoot_PI)   _ki = noPi;
+  else if (_tuningMethod == CohenCoon_PI)     _ki = ccPi;
+  else                                        _ki = 0.25f * (znPi + doPi + noPi + ccPi); // Mixed_PI
   return _ki;
 }
 
 float sTune::GetKd() {
-  if (_tuningMethod == ZN_PID)                _kd = 1 / (0.5f * _tdMin);
-  else if (_tuningMethod == ZN_Half_PID)      _kd = 1 / (1.0f * _tdMin);
-  else if (_tuningMethod == Damped_PID)       _kd = 1 / (_TuMin / 9.0f);
-  else if (_tuningMethod == NoOvershoot_PID)  _kd = 1 / (0.5f * _tdMin);
-  else if (_tuningMethod == CohenCoon_PID)    _kd = 1 / ((4.0f * _tdMin) / (11.0f + (2.0f * _R)));
+  float znPid = 1 / (1.0f * _tdMin);
+  float doPid = 1 / (_TuMin / 9.0f);
+  float noPid = 1 / (0.5f * _tdMin);
+  float ccPid = 1 / ((4.0f * _tdMin) / (11.0f + (2.0f * _R)));
+  if (_tuningMethod == ZN_PID)                _kd = znPid;
+  else if (_tuningMethod == DampedOsc_PID)    _kd = doPid;
+  else if (_tuningMethod == NoOvershoot_PID)  _kd = noPid;
+  else if (_tuningMethod == CohenCoon_PID)    _kd = ccPid;
+  else if (_tuningMethod == Mixed_PID)        _kd = 0.25f * (znPid + doPid + noPid + ccPid);
   else                                        _kd = 0.0f; // PI controller
   return _kd;
+}
+
+float sTune::GetTi() {
+  return 1.0f / _ki;
+}
+
+float sTune::GetTd() {
+  if (_tuningMethod == ZN_PID ||
+      _tuningMethod == DampedOsc_PID ||
+      _tuningMethod == NoOvershoot_PID ||
+      _tuningMethod == CohenCoon_PID ||
+      _tuningMethod == Mixed_PID) return 1.0f / _kd;
+  else return 0;
 }
 
 float sTune::GetProcessGain() {
@@ -435,14 +459,6 @@ float sTune::GetDeadTime() {
 
 float sTune::GetTau() {
   return _Tu;
-}
-
-float sTune::GetTimeIntegral() {
-  return 1.0f / _ki;
-}
-
-float sTune::GetTimeDerivative() {
-  return 1.0f / _kd;
 }
 
 uint8_t sTune::GetControllerAction() {

@@ -32,17 +32,17 @@ QuickPID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd,
                myPID.iAwMode::iAwClamp,
                myPID.Action::direct);
 
-sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.serialPLOTTER);
-/*                                         ZN_PID        directIP        serialOFF
-                                           ZN_Half_PID   direct5T        printALL
-                                           Damped_PID    reverseIP       printSUMMARY
-                                           NoOvershoot_PID reverse5T     printDEBUG
-                                           CohenCoon_PID                 printPIDTUNER
-                                           ZN_PI                         serialPLOTTER
-                                           ZN_Half_PI
-                                           Damped_PI
+sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
+/*                                         ZN_PID           directIP        serialOFF
+                                           DampedOsc_PID    direct5T        printALL
+                                           NoOvershoot_PID  reverseIP       printSUMMARY
+                                           CohenCoon_PID    reverse5T       printDEBUG
+                                           Mixed_PID
+                                           ZN_PI
+                                           DampedOsc_PI
                                            NoOvershoot_PI
                                            CohenCoon_PI
+                                           Mixed_PI
 */
 void setup() {
   analogReference(EXTERNAL); // AVR
@@ -60,8 +60,9 @@ void loop() {
 
     case tuner.tunings:                                          // active just once when sTune is done
       tuner.GetAutoTunings(&Kp, &Ki, &Kd);                       // sketch variables updated by sTune
+      myPID.SetSampleTimeUs((testTimeSec * 1000000) / samples);  // PID sample rate (same as sTune)
+      Output = 0;                                                // required before switching PID to Automatic
       myPID.SetMode(myPID.Control::automatic);                   // the PID is turned on (automatic)
-      myPID.SetSampleTimeUs((testTimeSec * 1000000) / samples);  // PID sample rate
       myPID.SetTunings(Kp, Ki, Kd);                              // update PID with the new tunings
       break;
 
@@ -69,7 +70,7 @@ void loop() {
       Input = (analogRead(inputPin) / mvResolution) - bias;
       myPID.Compute();
       analogWrite(outputPin, Output);
-      tuner.plotter(Setpoint, 10); // plots every 10th sample
+      tuner.plotter(Setpoint, 0.5, 6, 1); // plot output scaled 0.5, plot every 6th sample, plot averaged input
       break;
   }
   // put your main code here, to run repeatedly

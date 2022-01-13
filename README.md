@@ -6,7 +6,12 @@ This is an open loop PID autotuner using a novel s-curve inflection point test m
 
 This tuning method determines the process gain, dead time, time constant and more by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.
 
-- See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more.
+See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more: 
+
+- [Get_All_Tunings](https://github.com/Dlloydev/sTune/wiki/Get_All_Tunings)
+- [plotter function reference](https://github.com/Dlloydev/sTune/wiki/plotter-function-reference)
+- [printPidTuner function reference](https://github.com/Dlloydev/sTune/wiki/printPidTuner-function-reference)
+- ***TODO**: digital ON/OFF (relay) temperature control*
 
 #### Inflection Point Discovery
 
@@ -57,7 +62,7 @@ The slope of the tangent line is checked at every sample. When the sign of the c
   pvMax = pvIp + slopeIp * kexp;  // where kexp = 4.3004 = (1 / exp(-1)) / (1 - exp(-1))
   ```
 
-- The process gain `Ku` and time constant `Tu` are determined and the selected tuning rule's constants are used to determine `Kp, Ki and Kd`. Also, `controllability` and other details are provided (see comments in `sTune.cpp`).
+- The process gain `Ku` and time constant `Tu` are determined and the selected tuning rule's constants are used to determine `Kp, Ki, Kd, Ti and Td`. Also, `controllability` and other details are provided (see comments in `sTune.cpp`).
 - In the user's sketch, the PID controller is set to automatic, the tuning parameters are applied the PID controller is run.
 
 ### Functions
@@ -71,20 +76,20 @@ sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialM
 - `input` and `output` are pointers to the variables holding these values.
 - `tuningRule` provides selection of 10 various tuning rules as described in the table below.
 - `action` provides choices for controller action (direct or reverse) and whether to perform a fast inflection point test (IP) or a full 5 time constant test (5T). Choices are `directIP`, `direct5T`, `reverseIP` and `reverse5T`.
-- `serialMode` provides 6 choices for serial output as described in the table below.
+- `serialMode` provides 6 choices for serial output.
 
-| Open Loop Tuning Methods | Description                                                  |
-| ------------------------ | ------------------------------------------------------------ |
-| `ZN_PID`                 | Open loop Ziegler-Nichols method with ¼ decay ratio          |
-| `ZN_Half_PID`            | Same as `ZN_PID` but with all constants cut in half          |
-| `Damped_PID`             | Can solve marginal stability issues                          |
-| `NoOvershoot_PID`        | Uses C-H-R method (set point tracking) with 0% overshoot     |
-| `CohenCoon_PID`          | Open loop method approximates closed loop response with a ¼ decay ratio |
-| `ZN_PI`                  | Open loop Ziegler-Nichols method with ¼ decay ratio          |
-| `ZN_Half_PI`             | Same as `ZN_PID` but with all constants cut in half          |
-| `Damped_PI`              | Can solve marginal stability issues                          |
-| `NoOvershoot_PI`         | Uses C-H-R method (set point tracking) with 0% overshoot     |
-| `CohenCoon_PI`           | Open loop method approximates closed loop response with a ¼ decay ratio |
+| Open Loop Tuning Methods | Autotune  Plot (using PWM output)                            | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `ZN_PID`                 | [![Click to enlarge](https://user-images.githubusercontent.com/63488701/149276354-fcec7626-4f0a-4ce2-a8a2-078745a84dcd.png)](https://user-images.githubusercontent.com/63488701/149275791-a46f353a-3215-486c-a9ce-d96183897272.PNG) | Open Loop Ziegler-Nichols method with ¼ decay ratio          |
+| `DampedOsc_PID`          | [![Click to enlarge](https://user-images.githubusercontent.com/63488701/149277219-48534317-cf0f-44f0-a5be-12653b2f6e0c.png)](https://user-images.githubusercontent.com/63488701/149275509-68d12ba6-269a-4ce1-b8a7-36037518c49b.PNG) | Damped Oscillation method can solve marginal stability issues |
+| `NoOvershoot_PID`        | [![Click to enlarge](https://user-images.githubusercontent.com/63488701/149277649-7bdf4a72-4de6-41b2-9825-628d4d742423.png)](https://user-images.githubusercontent.com/63488701/149275728-4fca57f0-c975-4350-ab45-56d50b7c2cdf.PNG) | No Overshoot uses the C-H-R method (set point tracking) with 0% overshoot |
+| `CohenCoon_PID`          | [![Click to enlarge](https://user-images.githubusercontent.com/63488701/149278074-6a01584e-0c9b-44bf-b595-f436f653f220.png)](https://user-images.githubusercontent.com/63488701/149275398-69586823-0267-4834-8183-d383713f2d27.PNG) | Open loop Cohen Coon method approximates closed loop response with a ¼ decay ratio |
+| `Mixed_PID`              | [![Click to enlarge](https://user-images.githubusercontent.com/63488701/149278272-5057825c-5d92-4e69-9790-c90fd5235eaf.png)](https://user-images.githubusercontent.com/63488701/149275646-7aa0d8c9-397e-4bc5-8110-85b54a951c4f.PNG) | Mixed method averages the gains for `ZN_PID`, `DampedOsc_PID`, `NoOvershoot_PID` and `CohenCoon_PID` |
+| `ZN_PI`                  |                                                              | Open Loop Ziegler-Nichols method with ¼ decay ratio          |
+| `DampedOsc_PI`           |                                                              | Damped Oscillation method can solve marginal stability issues |
+| `NoOvershoot_PI`         |                                                              | No Overshoot uses the C-H-R method (set point tracking) with 0% overshoot |
+| `CohenCoon_PI`           |                                                              | Open loop Cohen Coon method approximates closed loop response with a ¼ decay ratio |
+| `Mixed_PI`               |                                                              | Mixed method averages the gains for `ZN_PI`, `DampedOsc_PI`, `NoOvershoot_PI` and `CohenCoon_PI` |
 
 | Serial Mode     | Description                                                  |
 | --------------- | ------------------------------------------------------------ |
@@ -99,16 +104,16 @@ sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialM
 
 ```c++
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
-/*                                         ZN_PID        directIP        serialOFF
-                                           ZN_Half_PID   direct5T        printALL
-                                           Damped_PID    reverseIP       printSUMMARY
-                                           NoOvershoot_PID reverse5T     printDEBUG
-                                           CohenCoon_PID                 printPIDTUNER
-                                           ZN_PI                         serialPLOTTER
-                                           ZN_Half_PI
-                                           Damped_PI
+/*                                         ZN_PID           directIP        serialOFF
+                                           DampedOsc_PID    direct5T        printALL
+                                           NoOvershoot_PID  reverseIP       printSUMMARY
+                                           CohenCoon_PID    reverse5T       printDEBUG
+                                           Mixed_PID
+                                           ZN_PI
+                                           DampedOsc_PI
                                            NoOvershoot_PI
                                            CohenCoon_PI
+                                           Mixed_PI
 */
 ```
 
@@ -132,18 +137,19 @@ void SetTuningMethod(TuningMethod TuningMethod);
 #### Query Functions
 
 ```c++
-float GetKp();                 // proportional gain
-float GetKi();                 // integral gain
-float GetKd();                 // derivative gain
-float GetProcessGain();        // process gain
-float GetDeadTime();           // process dead time (seconds)
-float GetTau();                // process time constant (seconds)
-float GetTimeIntegral();       // process time integral (seconds)
-float GetTimeDerivative();     // process time derivative (seconds)
+float GetKp();                  // proportional gain
+float GetKi();                  // integral gain
+float GetKd();                  // derivative gain
+float GetTi();                  // integral time
+float GetTd();                  // derivative time
+float GetProcessGain();         // process gain
+float GetDeadTime();            // process dead time (seconds)
+float GetTau();                 // process time constant (seconds)
 uint8_t GetControllerAction();
 uint8_t GetSerialMode();
-uint8_t GetTuningRule();
+uint8_t GetTuningMethod();
 void GetAutoTunings(float * kp, float * ki, float * kd);
+
 ```
 
 #### Controllability of the process
