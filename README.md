@@ -103,7 +103,7 @@ sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialM
 #### Instantiate sTune
 
 ```c++
-sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
+sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
 /*                                         ZN_PID           directIP        serialOFF
                                            DampedOsc_PID    direct5T        printALL
                                            NoOvershoot_PID  reverseIP       printSUMMARY
