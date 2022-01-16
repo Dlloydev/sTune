@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.1.0
+   sTune Library for Arduino - Version 2.1.1
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -97,7 +97,7 @@ uint8_t sTune::Run() {
 
     case test:                                          // run inflection point test method
       if (settleElapsed >= _settlePeriodUs) {           // if settling period has expired
-        if (sampleCount == 12) *_output = _outputStep;  // provides additional period using _outputStart
+        if (sampleCount == 8) *_output = _outputStep;   // provides additional period using _outputStart
         if (usElapsed >= _samplePeriodUs) {             // ready to process a sample
           usPrev = usNow;
           if (sampleCount <= _samples) {                // if within testing period

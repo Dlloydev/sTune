@@ -18,6 +18,7 @@ const float inputSpan = 80;
 const float outputSpan = 255;
 float outputStart = 0;
 float outputStep = 25;
+bool clearPidOutput = false;    // false: "on the fly" testing, true: PID starts at 0 output
 
 // temperature
 const float mvResolution = 3300 / 1024.0f;
@@ -42,7 +43,7 @@ sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.prin
                                            Mixed_PI
 */
 void setup() {
-  analogReference(EXTERNAL); // AVR
+  analogReference(EXTERNAL); // used by TCLab
   Serial.begin(115200);
   analogWrite(outputPin, outputStart);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
@@ -59,7 +60,7 @@ void loop() {
     case tuner.tunings:                                      // active just once when sTune is done
       tuner.GetAutoTunings(&kp, &ki, &kd);                   // sketch variables updated by sTune
       myPID.SetSampleTime((testTimeSec * 1000) / samples);   // PID sample rate
-      Output = 0;                                            // required before switching PID to Automatic
+      if (clearPidOutput) Output = 0;
       myPID.SetMode(AUTOMATIC);                              // the PID is turned on (automatic)
       myPID.SetTunings(kp, ki, kd);                          // update PID with the new tunings
       break;

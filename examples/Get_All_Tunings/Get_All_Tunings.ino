@@ -38,7 +38,7 @@ sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.prin
                                            Mixed_PI
 */
 void setup() {
-  analogReference(EXTERNAL); // AVR
+  analogReference(EXTERNAL); // used by TCLab
   Serial.begin(115200);
   delay(5000);
   analogWrite(outputPin, outputStart);

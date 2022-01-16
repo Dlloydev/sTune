@@ -7,7 +7,7 @@ class sTune {  // Inflection Point Autotuner
   public:
 
     enum Action : uint8_t {directIP, direct5T, reverseIP, reverse5T};
-    enum SerialMode : uint8_t {serialOFF, printALL, printSUMMARY, printDEBUG};
+    enum SerialMode : uint8_t {printOFF, printALL, printSUMMARY, printDEBUG};
     enum TunerStatus : uint8_t {inOut, test, tunings, runPid, timerPid};
     enum TuningMethod : uint8_t { ZN_PID, DampedOsc_PID, NoOvershoot_PID, CohenCoon_PID, Mixed_PID,
                                   ZN_PI, DampedOsc_PI, NoOvershoot_PI, CohenCoon_PI, Mixed_PI

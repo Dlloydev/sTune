@@ -8,6 +8,7 @@ This tuning method determines the process gain, dead time, time constant and mor
 
 See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more: 
 
+- [Autotune Digital Output](https://github.com/Dlloydev/sTune/wiki/Autotune_PID_Digital_Out_Reference)   ![image](https://user-images.githubusercontent.com/63488701/149647496-f4459516-a483-469e-af1e-90a54fbd909e.png)
 - [Get_All_Tunings](https://github.com/Dlloydev/sTune/wiki/Get_All_Tunings)
 - [plotter function reference](https://github.com/Dlloydev/sTune/wiki/plotter-function-reference)
 - [printPidTuner function reference](https://github.com/Dlloydev/sTune/wiki/printPidTuner-function-reference)
@@ -45,9 +46,9 @@ The slope of the tangent line is checked at every sample. When the sign of the c
      If the output uses 8-bit PWM and your using its full range, then `outputSpan = 255;`
      If the output is digital relay controlled by millis() with window period of 2000ms, then `outputSpan = 2000;`
 
-- `outputStart` is the initial control output value which is used for the first 12 samples.
+- `outputStart` is the initial control output value which is used for the first 8 samples.
 
-- `outputStep` is the stepped output value used for sample 13 to test completion.
+- `outputStep` is the stepped output value used for sample 9 to test completion.
 
 - after test completion, the setup can be updated for the next test and `tuner.Configure()` can be called again.
 
