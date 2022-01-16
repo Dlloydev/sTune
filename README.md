@@ -11,8 +11,6 @@ See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more
 - [Autotune Digital Output](https://github.com/Dlloydev/sTune/wiki/Autotune_PID_Digital_Out_Reference)   ![image](https://user-images.githubusercontent.com/63488701/149647496-f4459516-a483-469e-af1e-90a54fbd909e.png)
 - [Get_All_Tunings](https://github.com/Dlloydev/sTune/wiki/Get_All_Tunings)
 - [plotter function reference](https://github.com/Dlloydev/sTune/wiki/plotter-function-reference)
-- [printPidTuner function reference](https://github.com/Dlloydev/sTune/wiki/printPidTuner-function-reference)
-- ***TODO**: digital ON/OFF (relay) temperature control*
 
 #### Inflection Point Discovery
 
