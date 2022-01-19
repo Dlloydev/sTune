@@ -30,7 +30,7 @@ float input = 0, output = 0, kp = 0, ki = 0, kd = 0; // tuner
 
 PID myPID(&Input, &Output, &Setpoint, 0, 0, 0, DIRECT);
 
-sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
+sTune tuner = sTune(&input, &output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
 /*                                         ZN_PID           directIP        serialOFF
                                            DampedOsc_PID    direct5T        printALL
                                            NoOvershoot_PID  reverseIP       printSUMMARY
