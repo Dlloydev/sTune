@@ -96,7 +96,7 @@ sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialM
 | `printALL`      | Prints test data while settling and during the test run. A summary of results is printed when testing completes. |
 | `printSUMMARY`  | A summary of results is printed when testing completes.      |
 | `printDEBUG`    | Same as `printALL`but includes printing diagnostic data during test run. |
-| `printPIDTUNER` | ➩  Prints test data in csv format compatible with [pidtuner.com](https://pidtuner.com/#/). <br />➩  Requires the controller `action` being set to `direct5T` or `reverse5T`<br />➩  Just copy the serial printer data and import (paste) into PID Tuner for further<br />      analysis, model identification, fine PID tuning and experimentation. <br />➩  Note that `Kp`, `Ti` and `Td` is also provided for PID Tuner. |
+| `printPIDTUNER` | ➩  Prints test data in csv format compatible with [pidtuner.com](https://pidtuner.com). <br />➩  Requires the controller `action` being set to `direct5T` or `reverse5T`<br />➩  Just copy the serial printer data and import (paste) into PID Tuner for further<br />      analysis, model identification, fine PID tuning and experimentation. <br />➩  Note that `Kp`, `Ti` and `Td` is also provided for PID Tuner. |
 | `printPLOTTER`  | Plots `pvAvg` data for use with Serial Plotter.              |
 
 #### Instantiate sTune
