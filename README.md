@@ -8,7 +8,7 @@ This tuning method determines the process gain, dead time, time constant and mor
 
 See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more: 
 
-- [Autotune Digital Output](https://github.com/Dlloydev/sTune/wiki/Autotune_PID_Digital_Out_Reference)   ![image](https://user-images.githubusercontent.com/63488701/149647496-f4459516-a483-469e-af1e-90a54fbd909e.png)
+- [Autotune Digital Output](https://github.com/Dlloydev/sTune/wiki/Autotune_PID_Digital_Out_Reference) 
 - [Get_All_Tunings](https://github.com/Dlloydev/sTune/wiki/Get_All_Tunings)
 - [plotter function reference](https://github.com/Dlloydev/sTune/wiki/plotter-function-reference)
 
@@ -102,11 +102,11 @@ sTune(float *input, float *output, TuningRule tuningRule, Action action, SerialM
 #### Instantiate sTune
 
 ```c++
-sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
-/*                                         ZN_PID           directIP        serialOFF
-                                           DampedOsc_PID    direct5T        printALL
-                                           NoOvershoot_PID  reverseIP       printSUMMARY
-                                           CohenCoon_PID    reverse5T       printDEBUG
+sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
+/*                                         ZN_PID           directIP     serialOFF
+                                           DampedOsc_PID    direct5T     printALL
+                                           NoOvershoot_PID  reverseIP    printSUMMARY
+                                           CohenCoon_PID    reverse5T    printDEBUG
                                            Mixed_PID
                                            ZN_PI
                                            DampedOsc_PI
@@ -128,6 +128,7 @@ This function applies the sTune test settings.
 #### Set Functions
 
 ```c++
+void SetEmergencyStop(float e_Stop);
 void SetControllerAction(Action Action);
 void SetSerialMode(SerialMode SerialMode);
 void SetTuningMethod(TuningMethod TuningMethod);

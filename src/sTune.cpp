@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.1.1
+   sTune Library for Arduino - Version 2.2.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -35,7 +35,7 @@ sTune::sTune(float *input, float *output, TuningMethod tuningMethod, Action acti
 }
 
 void sTune::Reset() {
-  _tunerStatus = inOut;
+  _tunerStatus = test;
   *_output = _outputStart;
   usPrev = micros();
   settlePrev = usPrev;
@@ -67,13 +67,13 @@ void sTune::Configure(const float inputSpan, const float outputSpan, float outpu
                       uint32_t testTimeSec, uint32_t settleTimeSec, const uint16_t samples) {
   sTune::Reset();
   _inputSpan = inputSpan;
+  eStop = inputSpan * 1.1f;
   _outputSpan = outputSpan;
   _outputStart = outputStart;
   _outputStep = outputStep;
   _testTimeSec = testTimeSec;
   _settleTimeSec = settleTimeSec;
   _samples = samples;
-  _tunerStatus = inOut;
   _bufferSize = (uint16_t)(_samples * 0.1);
   _samplePeriodUs = (float)(_testTimeSec * 1000000.0f) / _samples;
   _tangentPeriodUs = _samplePeriodUs * (_bufferSize - 1);
@@ -90,12 +90,19 @@ uint8_t sTune::Run() {
 
   switch (_tunerStatus) {
 
-    case inOut:
+    case sample:
       _tunerStatus = test;
       return test;
       break;
 
     case test:                                          // run inflection point test method
+      if (pvInst > eStop && !eStopAbort) {
+        sTune::Reset();
+        sampleCount = _samples + 1;
+        eStopAbort = 1;
+        Serial.println(F(" ABORT: pvInst > eStop"));
+        break;
+      }
       if (settleElapsed >= _settlePeriodUs) {           // if settling period has expired
         if (sampleCount == 8) *_output = _outputStep;   // provides additional period using _outputStart
         if (usElapsed >= _samplePeriodUs) {             // ready to process a sample
@@ -199,9 +206,12 @@ uint8_t sTune::Run() {
             pvTangentPrev = pvTangent;
           } else _tunerStatus = tunings;
           sampleCount++;
+          _tunerStatus = sample;
+          return sample;
         }
+
       } else {  // settling
-        if (usElapsed >= _samplePeriodUs) {
+        if (usElapsed >= _samplePeriodUs && !eStopAbort) {
           *_output = _outputStart;
           usPrev = usNow;
           pvInst = *_input;
@@ -210,17 +220,15 @@ uint8_t sTune::Run() {
             Serial.print(F("  pvInst: ")); Serial.print(pvInst, 4);
             Serial.println(F("  Settling  ⤳⤳⤳⤳"));
           }
+          _tunerStatus = sample;
+          return sample;
         }
-        _tunerStatus = inOut;
-        return inOut;
       }
-      _tunerStatus = inOut;
-      return inOut;
       break;
 
     case tunings:
-      _tunerStatus = runPid;
-      return runPid;
+      _tunerStatus = timerPid;
+      return timerPid;
       break;
 
     case runPid:
@@ -245,6 +253,10 @@ uint8_t sTune::Run() {
       break;
   }
   return timerPid;
+}
+
+void sTune::SetEmergencyStop(float e_Stop) {
+  eStop = e_Stop;
 }
 
 void sTune::SetControllerAction(Action Action) {
@@ -277,7 +289,8 @@ void sTune::plotter(float setpoint, float outputScale, uint8_t everyNth, bool av
     plotCount = 1;
     Serial.print(F("Setpoint:"));  Serial.print(setpoint);                   Serial.print(F(", "));
     Serial.print(F("Input:"));     Serial.print((average) ? pvAvg : pvInst); Serial.print(F(", "));
-    Serial.print(F("Output:"));    Serial.print(*_output * outputScale);     Serial.println(F(","));
+    Serial.print(F("Output:"));    Serial.print(*_output * outputScale);     Serial.print(F(","));
+    Serial.println();
   } else plotCount++;
 }
 
@@ -297,6 +310,7 @@ void sTune::printTestRun() {
         Serial.print(F("  ipCount: "));    Serial.print(ipCount);
       }
       Serial.print(F("  pvTangent: "));                 Serial.print(pvTangent, 4);
+      if (pvInst > 0.9f * eStop)                         Serial.print(F(" ⚠"));
       if (pvTangent - pvTangentPrev > 0 + epsilon)      Serial.println(F(" ↗"));
       else if (pvTangent - pvTangentPrev < 0 - epsilon) Serial.println(F(" ↘"));
       else                                              Serial.println(F(" →"));

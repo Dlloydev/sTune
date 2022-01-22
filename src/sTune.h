@@ -8,7 +8,7 @@ class sTune {  // Inflection Point Autotuner
 
     enum Action : uint8_t {directIP, direct5T, reverseIP, reverse5T};
     enum SerialMode : uint8_t {printOFF, printALL, printSUMMARY, printDEBUG};
-    enum TunerStatus : uint8_t {inOut, test, tunings, runPid, timerPid};
+    enum TunerStatus : uint8_t {sample, test, tunings, runPid, timerPid};
     enum TuningMethod : uint8_t { ZN_PID, DampedOsc_PID, NoOvershoot_PID, CohenCoon_PID, Mixed_PID,
                                   ZN_PI, DampedOsc_PI, NoOvershoot_PI, CohenCoon_PI, Mixed_PI
                                 };
@@ -26,6 +26,7 @@ class sTune {  // Inflection Point Autotuner
     void plotter(float setpoint, float outputScale = 1, uint8_t everyNth = 1, bool average = false);
 
     // Set functions
+    void SetEmergencyStop(float e_Stop);
     void SetControllerAction(Action Action);
     void SetSerialMode(SerialMode SerialMode);
     void SetTuningMethod(TuningMethod TuningMethod);
@@ -53,10 +54,10 @@ class sTune {  // Inflection Point Autotuner
 
     float *_input, *_output, _settlePeriodUs, _samplePeriodUs, _tangentPeriodUs;
     float  _inputSpan, _outputSpan, _outputStart, _outputStep;
-    float pvInst, pvAvg, pvIp, pvMax, pvPk, pvRes, slopeIp, pvTangent, pvTangentPrev = 0, pvStart;
+    float eStop, pvInst, pvAvg, pvIp, pvMax, pvPk, pvRes, slopeIp, pvTangent, pvTangentPrev = 0, pvStart;
     float _kp, _ki, _kd, _Ku, _Tu, _td, _R, _Ko, _TuMin, _tdMin;
 
-    uint8_t ipCount = 0, plotCount = 0;
+    uint8_t ipCount = 0, plotCount = 0, eStopAbort = 0;
     uint16_t _bufferSize, _samples, sampleCount = 0, pvPkCount = 0, dtCount = 0;
     uint32_t _settleTimeSec, _testTimeSec, usPrev = 0, settlePrev = 0, usStart, us, ipUs;
 

@@ -20,6 +20,7 @@ printTestRun	KEYWORD2
 printResults	KEYWORD2
 printPidTuner	KEYWORD2
 plotter	KEYWORD2
+SetEmergencyStop	KEYWORD2
 SetControllerAction	KEYWORD2
 SetSerialMode	KEYWORD2
 SetTuningMethod	KEYWORD2
@@ -53,7 +54,7 @@ printOFF	LITERAL1
 printALL	LITERAL1
 printSUMMARY	LITERAL1
 printDEBUG	LITERAL1
-inOut	LITERAL1
+sample	LITERAL1
 test	LITERAL1
 tunings	LITERAL1
 runPid	LITERAL1

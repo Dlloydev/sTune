@@ -1,6 +1,5 @@
 /********************************************************************
-   sTune Get All Tunings Example (using Temperature Control Lab)
-   http://apmonitor.com/pdc/index.php/Main/ArduinoTemperatureControl
+   sTune Get All Tunings Example
  ********************************************************************/
 
 #include <sTune.h>
@@ -9,23 +8,19 @@
 const uint8_t inputPin = 0;
 const uint8_t outputPin = 3;
 
-// test setup
+// user settings
+uint32_t settleTimeSec = 15;
 uint32_t testTimeSec = 300;
 const uint16_t samples = 500;
-uint32_t settleTimeSec = 10;
 const float inputSpan = 80;
 const float outputSpan = 255;
 float outputStart = 0;
 float outputStep = 25;
 
-// temperature
-const float mvResolution = 3300 / 1024.0f;
-const float bias = 50;
-
 // test variables
-float Input = 0, Output = 0;
+float Input, Output;
 
-sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.printALL);
+sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
 /*                                         ZN_PID           directIP        serialOFF
                                            DampedOsc_PID    direct5T        printALL
                                            NoOvershoot_PID  reverseIP       printSUMMARY
@@ -38,9 +33,7 @@ sTune tuner = sTune(&Input, &Output, tuner.Mixed_PID, tuner.directIP, tuner.prin
                                            Mixed_PI
 */
 void setup() {
-  analogReference(EXTERNAL); // used by TCLab
   Serial.begin(115200);
-  delay(5000);
   analogWrite(outputPin, outputStart);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
 }
@@ -48,8 +41,8 @@ void setup() {
 void loop() {
 
   switch (tuner.Run()) {
-    case tuner.inOut:
-      Input = (analogRead(inputPin) / mvResolution) - bias;
+    case tuner.sample:
+      Input = analogRead(inputPin);
       analogWrite(outputPin, Output);
       break;
 
