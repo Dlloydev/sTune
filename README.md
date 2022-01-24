@@ -1,26 +1,18 @@
 # sTune    [![arduino-library-badge](https://www.ardu-badge.com/badge/sTune.svg?)](https://www.ardu-badge.com/sTune) [![PlatformIO Registry](https://badges.registry.platformio.org/packages/dlloydev/library/sTune.svg)](https://registry.platformio.org/packages/libraries/dlloydev/sTune)
 
-This is an open loop PID autotuner using a novel s-curve inflection point test method. Tuning parameters are typically determined in about ½Tau on a first-order system with time delay. Full 5Tau testing and multiple serial output options are provided.
+This is an open loop PID autotuner using a novel s-curve inflection point test method. Tuning parameters are typically determined in about ½Tau on a first-order system with time delay. Full 5Tau testing and multiple serial output options are provided. See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more.
 
-#### Reaction Curve Inflection Point Tuning Method
+### Inflection Point Tuning Method
 
-This tuning method determines the process gain, dead time, time constant and more by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.
-
-See [**WiKi**](https://github.com/Dlloydev/sTune/wiki) for test results and more: 
-
-- [Autotune Digital Output](https://github.com/Dlloydev/sTune/wiki/Autotune_PID_Digital_Out_Reference) 
-- [Get_All_Tunings](https://github.com/Dlloydev/sTune/wiki/Get_All_Tunings)
-- [plotter function reference](https://github.com/Dlloydev/sTune/wiki/plotter-function-reference)
+This open-loop tuning method is used when the controller action is set to `directIP` or `reverseIP`. This method works best on processes that respond with an S-shaped reaction curve to a stepped output. Being an open-loop test, there is no setpoint and PID correction involved. The process gain, dead time, time constant and more is determined by doing a shortened step test that ends just after the [inflection point](http://en.wikipedia.org/wiki/Inflection_point) has been reached. From here, the apparent maximum PV (input) is mathematically determined and the  controller's tuning parameters are calculated. Test duration is typically only ½Tau.
 
 #### Inflection Point Discovery
 
-Accurate determination of the inflection point was given high priority for this test method. To accomplish this, a circular buffer for the input readings is created that's sized to 10% of samples. The buffer is used as a moving tangent line where the "head" of the tangent is based on the average of all readings in the buffer and the "tail" is based on the oldest instantaneous value in the buffer. The tangent line slides along the reaction curve where where the head (leading point) moves smoothly but with moderate response. The tail (trailing point) of the tangent line is represented by instantaneous input readings that have occurred in the past (oldest buffer data point).
+Accurate determination of the inflection point was given high priority for this test method. To accomplish this, a circular buffer for the input readings is created that's sized to 10% of samples. The buffer is used as a moving tangent line where the "head" of the tangent is based on the average of all readings in the buffer and the "tail" is based on the oldest instantaneous value in the buffer. The tangent line moves along the reaction curve one sample at a time. The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After 1⁄16 samples has occurred with the new slope direction, then it's known that the point of inflection has been reached. Final calculations are made and the test ends.
 
-The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After 1⁄16 samples has occurred with the new slope direction, then it's known that the point of inflection has been reached. Final calculations are made and the test ends.
+#### S-shaped Step Response
 
-#### Inflection Point Tuning Method
-
-![Reaction Curve](https://user-images.githubusercontent.com/63488701/147842980-01d12e68-ed80-486c-823e-fcfaa6b89b41.png)
+![Reaction Curve](https://user-images.githubusercontent.com/63488701/150836409-4cc87582-e93b-4619-bfb8-f962176afd7e.png)
 
 #### Configuration
 
@@ -50,7 +42,7 @@ The slope of the tangent line is checked at every sample. When the sign of the c
 
 - after test completion, the setup can be updated for the next test and `tuner.Configure()` can be called again.
 
-#### Inflection Point Test
+#### Test
 
 - The `outputStep` value is applied after 12 samples and inflection point discovery begins.
 
@@ -63,6 +55,12 @@ The slope of the tangent line is checked at every sample. When the sign of the c
 
 - The process gain `Ku` and time constant `Tu` are determined and the selected tuning rule's constants are used to determine `Kp, Ki, Kd, Ti and Td`. Also, `controllability` and other details are provided (see comments in `sTune.cpp`).
 - In the user's sketch, the PID controller is set to automatic, the tuning parameters are applied the PID controller is run.
+
+### Full 5T Test
+
+A full test to pvMax is used when the controller action is set to `direct5T` or `reverse5T`. Use method if the `IP`testing isn't a good fit to the process or if you'd like to get test data for the complete input response. Here, it is assumed the test will complete at about 3.5τ, from which point the apparent `pvMax` is estimated and the tuning parameters are calculated.
+
+![image](https://user-images.githubusercontent.com/63488701/150850959-fe639dc9-5bed-4862-b072-e5001fbb420a.png)
 
 ### Functions
 
@@ -118,12 +116,12 @@ sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printAL
 
 #### Configure
 
+This function applies the sTune test settings.
+
 ```c++
 void Configure(const float inputSpan, const float outputSpan, float outputStart, float outputStep,
 uint32_t testTimeSec, uint32_t settleTimeSec, const uint16_t samples);
 ```
-
-This function applies the sTune test settings.
 
 #### Set Functions
 
@@ -154,17 +152,11 @@ void GetAutoTunings(float * kp, float * ki, float * kd);
 
 #### Controllability of the process
 
+When the test ends, sTune determines [how difficult](https://blog.opticontrols.com/wp-content/uploads/2011/06/td-versus-tau.png) the process is to control.
+
 ```c++
 float controllability = _Tu / _td + epsilon;
 ```
-
-When the test ends, sTune determines [how difficult](https://blog.opticontrols.com/wp-content/uploads/2011/06/td-versus-tau.png) the process is to control.
-
-| Controllability | Comment                 |
-| --------------- | ----------------------- |
-| Above 0.75      | Easy to control         |
-| 0.25 to 0.74    | Average controllability |
-| 0.00 to 0.24    | Difficult to control    |
 
 #### References
 
