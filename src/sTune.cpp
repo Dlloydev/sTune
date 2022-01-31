@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.2.0
+   sTune Library for Arduino - Version 2.3.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -55,8 +55,7 @@ void sTune::Reset() {
   pvTangentPrev = 0.0f;
   pvAvg = pvInst;
   pvStart = pvInst;
-  pvRes = pvInst;
-  dtCount = 0;
+  pvInstRes = pvInst;
   ipCount = 0;
   plotCount = 0;
   sampleCount = 0;
@@ -67,14 +66,14 @@ void sTune::Configure(const float inputSpan, const float outputSpan, float outpu
                       uint32_t testTimeSec, uint32_t settleTimeSec, const uint16_t samples) {
   sTune::Reset();
   _inputSpan = inputSpan;
-  eStop = inputSpan * 1.1f;
+  eStop = inputSpan;
   _outputSpan = outputSpan;
   _outputStart = outputStart;
   _outputStep = outputStep;
   _testTimeSec = testTimeSec;
   _settleTimeSec = settleTimeSec;
   _samples = samples;
-  _bufferSize = (uint16_t)(_samples * 0.1);
+  _bufferSize = (uint16_t)(_samples * 0.06);
   _samplePeriodUs = (float)(_testTimeSec * 1000000.0f) / _samples;
   _tangentPeriodUs = _samplePeriodUs * (_bufferSize - 1);
   _settlePeriodUs = (float)(_settleTimeSec * 1000000.0f);
@@ -95,7 +94,7 @@ uint8_t sTune::Run() {
       return test;
       break;
 
-    case test:                                          // run inflection point test method
+    case test: // run inflection point test method
       if (pvInst > eStop && !eStopAbort) {
         sTune::Reset();
         sampleCount = _samples + 1;
@@ -103,23 +102,29 @@ uint8_t sTune::Run() {
         Serial.println(F(" ABORT: pvInst > eStop"));
         break;
       }
-      if (settleElapsed >= _settlePeriodUs) {           // if settling period has expired
-        if (sampleCount == 8) *_output = _outputStep;   // provides additional period using _outputStart
-        if (usElapsed >= _samplePeriodUs) {             // ready to process a sample
+      if (settleElapsed >= _settlePeriodUs) { // if settling period has expired
+        if (sampleCount == 1) *_output = _outputStep;
+        if (usElapsed >= _samplePeriodUs) { // ready to process a sample
           usPrev = usNow;
-          if (sampleCount <= _samples) {                // if within testing period
+          if (sampleCount <= _samples) { // continue testing
+
+            // get pvInst and pvAvg (buffer) resolution
+            float lastPvInst = pvInst;
             float lastPvAvg = pvAvg;
             pvInst = *_input;
             pvAvg = tangent.avgVal(pvInst);
-            float pvDiff = abs(pvAvg - lastPvAvg);
+            float pvInstResolution = abs(pvInst - lastPvInst);
+            float pvAvgResolution = abs(pvAvg - lastPvAvg);
+            if (pvInstResolution > epsilon && pvInstResolution < pvInstRes) pvInstRes = pvInstResolution;
+            if (pvAvgResolution > epsilon && pvAvgResolution < pvAvgRes) pvAvgRes = pvAvgResolution;
 
-            if (pvDiff > epsilon && pvDiff < pvRes) pvRes = pvDiff;  // check buffered input resolution
-
-            if (sampleCount == 0) {                     // initialize at first sample
+            if (sampleCount == 0) { // initialize at first sample
               tangent.init(pvInst);
               pvAvg = pvInst;
-              pvDiff = 0.0f;
-              pvRes = pvInst;
+              pvInstResolution = 0.0f;
+              pvAvgResolution = 0.0f;
+              pvInstRes = pvInst;
+              pvAvgRes = pvInst;
               pvStart = pvInst;
               usStart = usNow;
               us = 0;
@@ -132,14 +137,11 @@ uint8_t sTune::Run() {
             // check for dead time
             bool dt = false;
             if (_action == directIP || _action == direct5T) {
-              (pvTangent - pvTangentPrev > 0 + epsilon) ?  dt = true : dt = false; // pvTangent ↗
+              (pvAvg > pvStart + pvInstRes + epsilon) ?  dt = true : dt = false;
             } else { // reverse
-              (pvTangent - pvTangentPrev < 0 - epsilon) ?  dt = true : dt = false; // pvTangent ↘
+              (pvAvg < pvStart - pvInstRes - epsilon) ?  dt = true : dt = false;
             }
-            if (dt) dtCount++;
-            if (dtCount == 4) {  // update deadtime when tangent changes for 4 samples
-              _td = us * 0.000001f;
-            }
+            if (!_td && dt) _td = us * 0.000001f;
 
             // check for inflection point
             bool ipcount = false;
@@ -171,7 +173,7 @@ uint8_t sTune::Run() {
               if (sampleCount >= _samples - 1) sampleCount = _samples - 2;
               if (us > _testTimeSec * 100000) {    // 10% of testTimeSec has elapsed
                 if (pvAvg > pvPk) {
-                  pvPk = pvAvg + 2 * pvRes;        // set a new boosted peak
+                  pvPk = pvAvg + 2 * pvAvgRes;        // set a new boosted peak
                   pvPkCount = 0;                   // reset the "below peak" counter
                 } else {
                   pvPkCount++;                     // count up while pvAvg is below the boosted peak
@@ -216,9 +218,10 @@ uint8_t sTune::Run() {
           usPrev = usNow;
           pvInst = *_input;
           if (_serialMode == printALL || _serialMode == printDEBUG) {
-            Serial.print(F(" Sec: "));     Serial.print((float)((_settlePeriodUs - settleElapsed) * 0.000001f), 5);
-            Serial.print(F("  pvInst: ")); Serial.print(pvInst, 4);
-            Serial.println(F("  Settling  ⤳⤳⤳⤳"));
+            Serial.print(F(" sec: "));     Serial.print((float)((_settlePeriodUs - settleElapsed) * 0.000001f), 4);
+            Serial.print(F("  out: ")); Serial.print(*_output);
+            Serial.print(F("  pv: "));     Serial.print(pvInst, 3);
+            Serial.println(F("  settling  ⤳⤳"));
           }
           _tunerStatus = sample;
           return sample;
@@ -232,6 +235,12 @@ uint8_t sTune::Run() {
       break;
 
     case runPid:
+      if (pvInst > eStop && !eStopAbort) {
+        sTune::Reset();
+        sampleCount = _samples + 1;
+        eStopAbort = 1;
+        Serial.println(F(" ABORT: pvInst > eStop"));
+      }
       _tunerStatus = timerPid;
       return timerPid;
       break;
@@ -275,21 +284,19 @@ void sTune::printPidTuner(uint8_t everyNth) {
   if (sampleCount < _samples) {
     if (plotCount == 0 || plotCount >= everyNth) {
       plotCount = 1;
-      Serial.print(us * 0.000001f, 5);  Serial.print(F(", "));
+      Serial.print(us * 0.000001f, 4);  Serial.print(F(", "));
       Serial.print(*_output);           Serial.print(F(", "));
       Serial.println(pvAvg);
     } else plotCount++;
   }
 }
 
-void sTune::plotter(float setpoint, float outputScale, uint8_t everyNth, bool average) {
-  pvInst = *_input;
-  pvAvg = tangent.avgVal(pvInst);
+void sTune::plotter(float input, float output, float setpoint, float outputScale, uint8_t everyNth) {
   if (plotCount >= everyNth) {
     plotCount = 1;
-    Serial.print(F("Setpoint:"));  Serial.print(setpoint);                   Serial.print(F(", "));
-    Serial.print(F("Input:"));     Serial.print((average) ? pvAvg : pvInst); Serial.print(F(", "));
-    Serial.print(F("Output:"));    Serial.print(*_output * outputScale);     Serial.print(F(","));
+    Serial.print(F("Setpoint:"));  Serial.print(setpoint);              Serial.print(F(", "));
+    Serial.print(F("Input:"));     Serial.print(input);                 Serial.print(F(", "));
+    Serial.print(F("Output:"));    Serial.print(output * outputScale);  Serial.print(F(","));
     Serial.println();
   } else plotCount++;
 }
@@ -298,24 +305,43 @@ void sTune::printTestRun() {
 
   if (sampleCount < _samples) {
     if (_serialMode == printALL || _serialMode == printDEBUG) {
-      Serial.print(F(" Sec: "));           Serial.print(us * 0.000001f, 5);
-      Serial.print(F("  pvInst: "));       Serial.print(pvInst, 4);
-      Serial.print(F("  pvAvg: "));        Serial.print(pvAvg, 4);
+      Serial.print(F(" sec: "));           Serial.print(us * 0.000001f, 4);
+      Serial.print(F("  out: "));          Serial.print(*_output);
+      Serial.print(F("  pv: "));           Serial.print(pvInst, 3);
+      //Serial.print(F("  pvAvg: "));      Serial.print(pvAvg, 3);
       if (_serialMode == printDEBUG && (_action == direct5T || _action == reverse5T)) {
-        Serial.print(F("  pvPk: "));       Serial.print(pvPk, 4);
+        Serial.print(F("  pvPk: "));       Serial.print(pvPk, 3);
         Serial.print(F("  pvPkCount: "));  Serial.print(pvPkCount);
         Serial.print(F("  ipCount: "));    Serial.print(ipCount);
       }
       if (_serialMode == printDEBUG && (_action == directIP || _action == reverseIP)) {
         Serial.print(F("  ipCount: "));    Serial.print(ipCount);
       }
-      Serial.print(F("  pvTangent: "));                 Serial.print(pvTangent, 4);
-      if (pvInst > 0.9f * eStop)                         Serial.print(F(" ⚠"));
+      Serial.print(F("  tan: "));                       Serial.print(pvTangent, 3);
+      if (pvInst > 0.9f * eStop)                        Serial.print(F(" ⚠"));
       if (pvTangent - pvTangentPrev > 0 + epsilon)      Serial.println(F(" ↗"));
       else if (pvTangent - pvTangentPrev < 0 - epsilon) Serial.println(F(" ↘"));
       else                                              Serial.println(F(" →"));
     }
   }
+}
+
+void sTune::printTunings() {
+  Serial.print(F(" Tuning Method: "));
+  if (_tuningMethod == ZN_PID) Serial.println(F("ZN_PID"));
+  else if (_tuningMethod == DampedOsc_PID) Serial.println(F("Damped_PID"));
+  else if (_tuningMethod == NoOvershoot_PID) Serial.println(F("NoOvershoot_PID"));
+  else if (_tuningMethod == CohenCoon_PID) Serial.println(F("CohenCoon_PID"));
+  else if (_tuningMethod == Mixed_PID) Serial.println(F("Mixed_PID"));
+  else if (_tuningMethod == ZN_PI) Serial.println(F("ZN_PI"));
+  else if (_tuningMethod == DampedOsc_PI) Serial.println(F("Damped_PI"));
+  else if (_tuningMethod == NoOvershoot_PI) Serial.println(F("NoOvershoot_PI"));
+  else if (_tuningMethod == CohenCoon_PI) Serial.println(F("CohenCoon_PI"));
+  else Serial.println(F("Mixed_PI"));
+  Serial.print(F("  Kp: ")); Serial.println(sTune::GetKp());
+  Serial.print(F("  Ki: ")); Serial.print(sTune::GetKi()); Serial.print(F("  Ti: ")); Serial.println(sTune::GetTi());
+  Serial.print(F("  Kd: ")); Serial.print(sTune::GetKd()); Serial.print(F("  Td: ")); Serial.println(sTune::GetTd());
+  Serial.println();
 }
 
 void sTune::printResults() {
@@ -326,38 +352,27 @@ void sTune::printResults() {
     else if (_action == direct5T) Serial.println(F("direct5T"));
     else if (_action == reverseIP) Serial.println(F("reverseIP"));
     else Serial.println(F("reverse5T"));
-    Serial.print(F(" Tuning Method:     "));
-    if (_tuningMethod == ZN_PID) Serial.println(F("ZN_PID"));
-    else if (_tuningMethod == DampedOsc_PID) Serial.println(F("Damped_PID"));
-    else if (_tuningMethod == NoOvershoot_PID) Serial.println(F("NoOvershoot_PID"));
-    else if (_tuningMethod == CohenCoon_PID) Serial.println(F("CohenCoon_PID"));
-    else if (_tuningMethod == Mixed_PID) Serial.println(F("Mixed_PID"));
-    else if (_tuningMethod == ZN_PI) Serial.println(F("ZN_PI"));
-    else if (_tuningMethod == DampedOsc_PI) Serial.println(F("Damped_PI"));
-    else if (_tuningMethod == NoOvershoot_PI) Serial.println(F("NoOvershoot_PI"));
-    else if (_tuningMethod == CohenCoon_PI) Serial.println(F("CohenCoon_PI"));
-    else Serial.println(F("Mixed_PI"));
     Serial.println();
     Serial.print(F(" Output Start:      "));  Serial.println(_outputStart);
     Serial.print(F(" Output Step:       "));  Serial.println(_outputStep);
-    Serial.print(F(" Sample Sec:        "));  Serial.println(_samplePeriodUs * 0.000001f, 5);
+    Serial.print(F(" Sample Sec:        "));  Serial.println(_samplePeriodUs * 0.000001f, 4);
     Serial.println();
     if (_serialMode == printDEBUG && (_action == directIP || _action == reverseIP)) {
-      Serial.print(F(" Ip Sec:            "));  Serial.println(ipUs * 0.000001f, 5);
-      Serial.print(F(" Ip Slope:          "));  Serial.print(slopeIp, 4);
+      Serial.print(F(" Ip Sec:            "));  Serial.println(ipUs * 0.000001f, 4);
+      Serial.print(F(" Ip Slope:          "));  Serial.print(slopeIp, 3);
       if (_action == directIP || _action == direct5T) Serial.println(F(" ↑"));
       else  Serial.println(F(" ↓"));
-      Serial.print(F(" Ip Pv:             "));  Serial.println(pvIp, 4);
+      Serial.print(F(" Ip Pv:             "));  Serial.println(pvIp, 3);
     }
-    Serial.print(F(" Pv Start:          "));  Serial.println(pvStart, 4);
+    Serial.print(F(" Pv Start:          "));  Serial.println(pvStart, 3);
     if (_action == directIP || _action == direct5T) Serial.print(F(" Pv Max:            "));
     else Serial.print(F(" Pv Min:            "));
-    Serial.println(pvMax, 4);
-    Serial.print(F(" Pv Diff:           "));  Serial.println(pvMax - pvStart, 4);
+    Serial.println(pvMax, 3);
+    Serial.print(F(" Pv Diff:           "));  Serial.println(pvMax - pvStart, 3);
     Serial.println();
-    Serial.print(F(" Process Gain:      "));  Serial.println(_Ku, 4);
-    Serial.print(F(" Dead Time Sec:     "));  Serial.println(_td, 5);
-    Serial.print(F(" Tau Sec:           "));  Serial.println(_Tu, 5);
+    Serial.print(F(" Process Gain:      "));  Serial.println(_Ku, 3);
+    Serial.print(F(" Dead Time Sec:     "));  Serial.println(_td, 3);
+    Serial.print(F(" Tau Sec:           "));  Serial.println(_Tu, 3);
     Serial.println();
 
     // Controllability https://blog.opticontrols.com/wp-content/uploads/2011/06/td-versus-tau.png
@@ -375,10 +390,7 @@ void sTune::printResults() {
     if (sampleTimeCheck >= 10) Serial.println(F(" (good sample rate)"));
     else Serial.println(F(" (low sample rate)"));
     Serial.println();
-    Serial.print(F("  Kp: ")); Serial.println(sTune::GetKp());
-    Serial.print(F("  Ki: ")); Serial.print(sTune::GetKi()); Serial.print(F("  Ti: ")); Serial.println(sTune::GetTi());
-    Serial.print(F("  Kd: ")); Serial.print(sTune::GetKd()); Serial.print(F("  Td: ")); Serial.println(sTune::GetTd());
-    Serial.println();
+    sTune::printTunings();
     sampleCount++;
   }
 }
@@ -392,11 +404,11 @@ void sTune::GetAutoTunings(float * kp, float * ki, float * kd) {
 }
 
 float sTune::GetKp() {
-  float znPid = (0.6f * _TuMin) / (_Ko * _tdMin);
+  float znPid = (0.6f * _TuMin) / (_Ku * _tdMin);
   float doPid = (0.66f * _TuMin) / (_Ko * _tdMin);
   float noPid = (0.6f / _Ku) * (_TuMin / _tdMin);
   float ccPid = _Ko * (1.33f + (_R / 4.0f));
-  float znPi = (0.45f * _TuMin) / (_Ko * _tdMin);
+  float znPi = (0.45f * _TuMin) / (_Ku * _tdMin);
   float doPi = (0.495f * _TuMin) / (_Ko * _tdMin);
   float noPi = (0.35f / _Ku) * (_TuMin / _tdMin);
   float ccPi = _Ko * (0.9f + (_R / 12.0f));
@@ -414,11 +426,11 @@ float sTune::GetKp() {
 }
 
 float sTune::GetKi() {
-  float znPid = 1 / (4.0f * _tdMin);
+  float znPid = 1 / (2.0f * _tdMin);
   float doPid = 1 / (_TuMin / 3.6f);
   float noPid = 1 / (_TuMin);
   float ccPid = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
-  float znPi = 1 / (6.6667f * _tdMin);
+  float znPi = 1 / (3.3333f * _tdMin);
   float doPi = 1 / (_TuMin / 2.6f);
   float noPi = 1 / (1.2f * _TuMin);
   float ccPi = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
@@ -437,7 +449,7 @@ float sTune::GetKi() {
 }
 
 float sTune::GetKd() {
-  float znPid = 1 / (1.0f * _tdMin);
+  float znPid = 1 / (0.5f * _tdMin);
   float doPid = 1 / (_TuMin / 9.0f);
   float noPid = 1 / (0.5f * _tdMin);
   float ccPid = 1 / ((4.0f * _tdMin) / (11.0f + (2.0f * _R)));
@@ -485,4 +497,38 @@ uint8_t sTune::GetSerialMode() {
 
 uint8_t sTune::GetTuningMethod() {
   return static_cast<uint8_t>(_tuningMethod);
+}
+
+float sTune::softPwm(const uint8_t relayPin, float input, float output, float setpoint, uint32_t windowSize, uint8_t debounce) {
+
+  // software PWM timer
+  uint32_t msNow = millis();
+  static uint32_t  windowStartTime, nextSwitchTime;
+  if (msNow - windowStartTime >= windowSize) {
+    windowStartTime = msNow;
+  }
+
+  // SSR optimum cycle controller (AC half-cycle control)
+  static float optimumOutput;
+  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 8;
+  else if (!debounce && setpoint > 0 && input < setpoint) optimumOutput = output + 8;
+  else  optimumOutput = output;
+  if (optimumOutput < 0) optimumOutput = 0;
+
+  // PWM relay output
+  static bool relayStatus;
+  if (!relayStatus && optimumOutput > (msNow - windowStartTime)) {
+    if (msNow > nextSwitchTime) {
+      nextSwitchTime = msNow + debounce;
+      relayStatus = true;
+      digitalWrite(relayPin, HIGH);
+    }
+  } else if (relayStatus && optimumOutput < (msNow - windowStartTime)) {
+    if (msNow > nextSwitchTime) {
+      nextSwitchTime = msNow + debounce;
+      relayStatus = false;
+      digitalWrite(relayPin, LOW);
+    }
+  }
+  return optimumOutput;
 }

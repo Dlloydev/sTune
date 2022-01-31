@@ -8,11 +8,11 @@ This open-loop tuning method is used when the controller action is set to `direc
 
 #### Inflection Point Discovery
 
-Accurate determination of the inflection point was given high priority for this test method. To accomplish this, a circular buffer for the input readings is created that's sized to 10% of samples. The buffer is used as a moving tangent line where the "head" of the tangent is based on the average of all readings in the buffer and the "tail" is based on the oldest instantaneous value in the buffer. The tangent line moves along the reaction curve one sample at a time. The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After 1⁄16 samples has occurred with the new slope direction, then it's known that the point of inflection has been reached. Final calculations are made and the test ends.
+Accurate determination of the inflection point was given high priority for this test method. To accomplish this, a circular buffer for the input readings is created that's sized to 6% of the samples value. The buffer is used as a moving tangent line where the "head" of the tangent is based on the average of all readings in the buffer and the "tail" is based on the oldest instantaneous value in the buffer. The tangent line moves along the reaction curve one sample at a time. The slope of the tangent line is checked at every sample. When the sign of the change in slope changes (i.e. slope goes from increasing to decreasing or from decreasing to increasing), this is the point of inflection ([where the tangent turns red here](https://en.wikipedia.org/wiki/Inflection_point#/media/File:Animated_illustration_of_inflection_point.gif)). After 1⁄16 samples has occurred with the new slope direction, then it's known that the point of inflection has been reached. Final calculations are made and the test ends.
 
 #### S-shaped Step Response
 
-![Reaction Curve](https://user-images.githubusercontent.com/63488701/150836409-4cc87582-e93b-4619-bfb8-f962176afd7e.png)
+![Reaction Curve](https://user-images.githubusercontent.com/63488701/151797252-63b6c4d1-2781-459a-81f8-22f931a4a96b.png)
 
 #### Configuration
 
@@ -32,21 +32,21 @@ Accurate determination of the inflection point was given high priority for this 
 
 - `inputSpan` and `outputSpan` represent the maximum operating range of input and output. Examples:
 
-  - If your input works with temp readings of 20C min and 150C max, then `inputSpan = 130;`
+  - If your input works with temp readings of 20C min and 220C max, then `inputSpan = 200;`
      If the output uses 8-bit PWM and your using its full range, then `outputSpan = 255;`
      If the output is digital relay controlled by millis() with window period of 2000ms, then `outputSpan = 2000;`
 
-- `outputStart` is the initial control output value which is used for the first 8 samples.
+- `outputStart` is the initial control output value which is used for the `settleTimeSec` duration and sample 0.
 
-- `outputStep` is the stepped output value used for sample 9 to test completion.
+- `outputStep` is the stepped output value used for sample 1 to test completion.
 
 - after test completion, the setup can be updated for the next test and `tuner.Configure()` can be called again.
 
 #### Test
 
-- The `outputStep` value is applied after 12 samples and inflection point discovery begins.
+- The `outputStep` value is applied at sample 1 and inflection point discovery begins.
 
-- Dead time is determined when the input has increased (or decreased) for 4 samples.
+- Dead time is determined when the averaged input has increased (or decreased) beyond one resolution value from the starting instantaneous input value.
 - When the point of inflection is reached, the test ends. The apparent `pvMax` is calculated using:
 
 - ```c++
@@ -58,9 +58,9 @@ Accurate determination of the inflection point was given high priority for this 
 
 ### Full 5T Test
 
-A full test to pvMax is used when the controller action is set to `direct5T` or `reverse5T`. Use method if the `IP`testing isn't a good fit to the process or if you'd like to get test data for the complete input response. Here, it is assumed the test will complete at about 3.5τ, from which point the apparent `pvMax` is estimated and the tuning parameters are calculated.
+A full test to pvMax is used when the controller action is set to `direct5T` or `reverse5T`. Use this method if the `IP`testing isn't a good fit to the process or if you'd like to get test data for the complete input response. Here, it is assumed the test will complete at about 3.5τ, from which point the apparent `pvMax` is estimated and the tuning parameters are calculated.
 
-![image](https://user-images.githubusercontent.com/63488701/150850959-fe639dc9-5bed-4862-b072-e5001fbb420a.png)
+![image](https://user-images.githubusercontent.com/63488701/150998367-a1999050-cab4-486f-a3ae-1c9dbdf11060.png)
 
 ### Functions
 

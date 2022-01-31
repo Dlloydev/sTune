@@ -18,8 +18,10 @@ Run	KEYWORD2
 Reset	KEYWORD2
 printTestRun	KEYWORD2
 printResults	KEYWORD2
+printTunings	KEYWORD2
 printPidTuner	KEYWORD2
 plotter	KEYWORD2
+softPwm	KEYWORD2
 SetEmergencyStop	KEYWORD2
 SetControllerAction	KEYWORD2
 SetSerialMode	KEYWORD2
