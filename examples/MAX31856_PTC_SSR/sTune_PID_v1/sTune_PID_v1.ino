@@ -1,10 +1,11 @@
-/***************************************************************
+/****************************************************************************
   sTune PID_v1 Example
   This sketch does on-the-fly tunning and PID SSR control of a
   PTC heater. Tunning parameters are quickly determined and
   applied during the temperature ramp-up to setpoint. Open
   the serial plotter to view the graphical results.
- ***************************************************************/
+  Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX31856_PTC_SSR
+  ****************************************************************************/
 
 #include <Adafruit_MAX31856.h>
 #include <sTune.h>
@@ -32,7 +33,7 @@ float Input, Output, Setpoint = 50, Kp, Ki, Kd; // sTune
 
 Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(10); //SPI
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printOFF);
-PID myPID(&input, &output, &setpoint, 0, 0, 0, P_ON_M, DIRECT);
+PID myPID(&input, &output, &setpoint, kp, ki, kd, P_ON_M, DIRECT);
 
 void setup() {
   pinMode(drdyPin, INPUT);
@@ -64,15 +65,18 @@ void loop() {
       myPID.SetOutputLimits(0, outputSpan * 0.1);
       myPID.SetSampleTime(outputSpan * 0.4);
       debounce = 0; // switch to SSR optimum cycle mode
-      output = outputStep, kp = Kp, ki = Ki, kd = Kd;
+      setpoint = Setpoint, output = outputStep, kp = Kp, ki = Ki, kd = Kd;
       myPID.SetMode(AUTOMATIC); // the PID is turned on
+      output = outputStep;
+      Output = output;
       myPID.SetTunings(kp, ki, kd); // update PID with the new tunings
       break;
 
     case tuner.runPid: // active once per sample after tunings
-      if (!digitalRead(drdyPin)) input = maxthermo.readThermocoupleTemperature();
+      if (!digitalRead(drdyPin)) Input = maxthermo.readThermocoupleTemperature();
+      input = Input;
       myPID.Compute();
-      Input = input, Output = output;
+      Output = output;
       tuner.plotter(Input, optimumOutput, Setpoint, 1, 3);
       break;
   }

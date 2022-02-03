@@ -1,14 +1,18 @@
-/*****************************************************************************
-  sTune Get All Tunings Example (MAX31856, PTC Heater and SSR)
-  Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX31856_PTC_SSR
-  ****************************************************************************/
-#include <Adafruit_MAX31856.h>
+/***************************************************************************
+  sTune Get All Tunings Example (MAX6675, PTC Heater and SSR)
+  Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX6675_PTC_SSR
+ ***************************************************************************/
+
+#include <max6675.h>
 #include <sTune.h>
 
 // pins
 const uint8_t inputPin = 0;
 const uint8_t relayPin = 3;
 const uint8_t drdyPin = 5;
+const uint8_t SO = 12;
+const uint8_t CS = 10;
+const uint8_t sck = 13;
 
 // user settings
 uint32_t settleTimeSec = 10;
@@ -23,7 +27,7 @@ float tempLimit = 100;
 // variables
 float Input, Output;
 
-Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(10);
+MAX6675 module(sck, CS, SO); //SPI
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
 
 void setup() {
@@ -33,12 +37,6 @@ void setup() {
   while (!Serial) delay(10);
   delay(3000);
   Output = 0;
-  if (!maxthermo.begin()) {
-    Serial.println("Could not initialize thermocouple.");
-    while (1) delay(10);
-  }
-  maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
-  maxthermo.setConversionMode(MAX31856_CONTINUOUS);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
   tuner.SetEmergencyStop(tempLimit);
 }
@@ -48,7 +46,7 @@ void loop() {
 
   switch (tuner.Run()) {
     case tuner.sample: // active once per sample during test
-      if (!digitalRead(drdyPin)) Input = maxthermo.readThermocoupleTemperature();
+      Input = module.readCelsius();
       break;
 
     case tuner.tunings: // active just once when sTune is done

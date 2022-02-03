@@ -12,7 +12,7 @@ Accurate determination of the inflection point was given high priority for this 
 
 #### S-shaped Step Response
 
-![Reaction Curve](https://user-images.githubusercontent.com/63488701/151797252-63b6c4d1-2781-459a-81f8-22f931a4a96b.png)
+![Reaction Curve](https://user-images.githubusercontent.com/63488701/151890696-d574d77b-b849-4079-81e2-71e4ee416fa3.png)
 
 #### Configuration
 
