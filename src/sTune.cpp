@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.3.1
+   sTune Library for Arduino - Version 2.3.2
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -113,8 +113,8 @@ uint8_t sTune::Run() {
             float lastPvAvg = pvAvg;
             pvInst = *_input;
             pvAvg = tangent.avgVal(pvInst);
-            float pvInstResolution = abs(pvInst - lastPvInst);
-            float pvAvgResolution = abs(pvAvg - lastPvAvg);
+            float pvInstResolution = fabs(pvInst - lastPvInst);
+            float pvAvgResolution = fabs(pvAvg - lastPvAvg);
             if (pvInstResolution > epsilon && pvInstResolution < pvInstRes) pvInstRes = pvInstResolution;
             if (pvAvgResolution > epsilon && pvAvgResolution < pvAvgRes) pvAvgRes = pvAvgResolution;
 
@@ -192,7 +192,7 @@ uint8_t sTune::Run() {
               _TuMin = _Tu * 0.1667; // units in minutes
               _tdMin = _td * 0.1667; // units in minutes
               _R = _tdMin / _TuMin;
-              _Ku =  abs(((pvMax - pvStart) / _inputSpan) / ((_outputStep - _outputStart) / _outputSpan)); // process gain
+              _Ku =  fabs(((pvMax - pvStart) / _inputSpan) / ((_outputStep - _outputStart) / _outputSpan)); // process gain
               _Ko = ((_outputStep - _outputStart) / pvMax) * (_TuMin / _tdMin); // process gain
 
               _kp = sTune::GetKp();
@@ -507,11 +507,9 @@ float sTune::softPwm(const uint8_t relayPin, float input, float output, float se
   if (msNow - windowStartTime >= windowSize) {
     windowStartTime = msNow;
   }
-
-  // SSR optimum cycle controller (AC half-cycle control)
+  // SSR optimum AC half-cycle controller
   static float optimumOutput;
-  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 8;
-  else if (!debounce && setpoint > 0 && input < setpoint) optimumOutput = output + 8;
+  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 9;
   else  optimumOutput = output;
   if (optimumOutput < 0) optimumOutput = 0;
 
