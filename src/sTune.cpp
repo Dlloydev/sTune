@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.3.2
+   sTune Library for Arduino - Version 2.3.3
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -509,7 +509,8 @@ float sTune::softPwm(const uint8_t relayPin, float input, float output, float se
   }
   // SSR optimum AC half-cycle controller
   static float optimumOutput;
-  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 9;
+  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 8;
+  else if (!debounce && setpoint > 0 && input < setpoint) optimumOutput = output + 8;
   else  optimumOutput = output;
   if (optimumOutput < 0) optimumOutput = 0;
 

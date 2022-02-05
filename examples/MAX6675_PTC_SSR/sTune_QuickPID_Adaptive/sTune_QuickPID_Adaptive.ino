@@ -19,14 +19,13 @@
 // pins
 const uint8_t inputPin = 0;
 const uint8_t relayPin = 3;
-const uint8_t drdyPin = 5;
 const uint8_t SO = 12;
 const uint8_t CS = 10;
 const uint8_t sck = 13;
 
 // user settings
 uint32_t settleTimeSec = 10;
-uint32_t testTimeSec = 500;
+uint32_t testTimeSec = 1000;
 const uint16_t samples = 500;
 const float inputSpan = 200;
 const float outputSpan = 2000;
@@ -43,7 +42,6 @@ sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printOF
 QuickPID myPID(&Input, &Output, &Setpoint);
 
 void setup() {
-  pinMode(drdyPin, INPUT);
   pinMode(relayPin, OUTPUT);
   Serial.begin(115200);
   while (!Serial) delay(10);
@@ -76,7 +74,7 @@ void loop() {
     case tuner.runPid: // active once per sample after tunings
       Input = module.readCelsius();
       if (Input > Setpoint && startup == 6) {
-        Output -= 17; // drop full AC cycle
+        Output -= 9; // drop half AC cycle
         myPID.SetMode(myPID.Control::manual);    // toggle PID control mode
         myPID.SetMode(myPID.Control::automatic); // PID uses new output value
         startup++;

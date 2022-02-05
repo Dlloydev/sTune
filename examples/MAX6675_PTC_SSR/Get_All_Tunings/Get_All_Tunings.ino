@@ -9,7 +9,6 @@
 // pins
 const uint8_t inputPin = 0;
 const uint8_t relayPin = 3;
-const uint8_t drdyPin = 5;
 const uint8_t SO = 12;
 const uint8_t CS = 10;
 const uint8_t sck = 13;
@@ -31,7 +30,6 @@ MAX6675 module(sck, CS, SO); //SPI
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printALL);
 
 void setup() {
-  pinMode(drdyPin, INPUT);
   pinMode(relayPin, OUTPUT);
   Serial.begin(115200);
   while (!Serial) delay(10);
