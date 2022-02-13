@@ -1,20 +1,19 @@
 /***************************************************************************
-  sTune QuickPID Example (MAX6675, PTC Heater / SSR / Software PWM)
+  sTune QuickPID Example (MAX31856, PTC Heater / SSR / Software PWM)
   This sketch does on-the-fly tuning and PID control. Tuning parameters are
-  quickly determined and applied during temperature ramp-up to setpoint.
-  View results using serial plotter.
-  Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX6675_PTC_SSR
+  quickly determined and applied. During the initial temperature ramp-up,
+  the output is reduced just prior to the input reaching setpoint. This
+  reduces overshoot. View results using serial plotter.
+  Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX31856_PTC_SSR
   ***************************************************************************/
-#include <max6675.h>
+#include <Adafruit_MAX31856.h>
 #include <sTune.h>
 #include <QuickPID.h>
 
 // pins
 const uint8_t inputPin = 0;
 const uint8_t relayPin = 3;
-const uint8_t SO = 12;
-const uint8_t CS = 10;
-const uint8_t sck = 13;
+const uint8_t drdyPin = 5;
 
 // user settings
 uint32_t settleTimeSec = 10;
@@ -26,11 +25,12 @@ float outputStart = 0;
 float outputStep = 50;
 float tempLimit = 150;
 uint8_t debounce = 1;
+bool startup = true;
 
 // variables
 float Input, Output, Setpoint = 80, Kp, Ki, Kd;
 
-MAX6675 module(sck, CS, SO); //SPI
+Adafruit_MAX31856 maxthermo = Adafruit_MAX31856(10); //SPI
 sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printOFF);
 QuickPID myPID(&Input, &Output, &Setpoint);
 
@@ -39,6 +39,12 @@ void setup() {
   Serial.begin(115200);
   delay(3000);
   Output = 0;
+  if (!maxthermo.begin()) {
+    Serial.println("Could not initialize thermocouple.");
+    while (1) delay(10);
+  }
+  maxthermo.setThermocoupleType(MAX31856_TCTYPE_K);
+  maxthermo.setConversionMode(MAX31856_CONTINUOUS);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
   tuner.SetEmergencyStop(tempLimit);
 }
@@ -48,7 +54,7 @@ void loop() {
 
   switch (tuner.Run()) {
     case tuner.sample: // active once per sample during test
-      Input = module.readCelsius();
+      if (!digitalRead(drdyPin)) Input = maxthermo.readThermocoupleTemperature();
       tuner.plotter(Input, Output, Setpoint, 0.5f, 3); // output scale 0.5, plot every 3rd sample
       break;
 
@@ -65,7 +71,13 @@ void loop() {
       break;
 
     case tuner.runPid: // active once per sample after tunings
-      Input = module.readCelsius();
+      if (startup && Input > Setpoint - 5) { // reduce overshoot
+        startup = false;
+        Output -= 9;
+        myPID.SetMode(myPID.Control::manual);
+        myPID.SetMode(myPID.Control::automatic);
+      }
+      if (!digitalRead(drdyPin)) Input = maxthermo.readThermocoupleTemperature();
       myPID.Compute();
       tuner.plotter(Input, optimumOutput, Setpoint, 0.5f, 3);
       break;

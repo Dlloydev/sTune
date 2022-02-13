@@ -1,8 +1,9 @@
 /***************************************************************************
-  sTune Get All Tunings Example (MAX6675, PTC Heater and SSR)
+  sTune Get All Tunings Example (MAX6675, PTC Heater / SSR / Software PWM)
+  This runs a fast inflection point test to determine tuning parameters.
+  Open serial printer to view test progress and results.
   Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX6675_PTC_SSR
  ***************************************************************************/
-
 #include <max6675.h>
 #include <sTune.h>
 
@@ -15,13 +16,13 @@ const uint8_t sck = 13;
 
 // user settings
 uint32_t settleTimeSec = 10;
-uint32_t testTimeSec = 500;
+uint32_t testTimeSec = 500;  // sample interval = testTimeSec / samples
 const uint16_t samples = 500;
-const float inputSpan = 220;
+const float inputSpan = 200;
 const float outputSpan = 1000;
 float outputStart = 0;
 float outputStep = 50;
-float tempLimit = 100;
+float tempLimit = 150;
 
 // variables
 float Input, Output;
@@ -32,7 +33,6 @@ sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printAL
 void setup() {
   pinMode(relayPin, OUTPUT);
   Serial.begin(115200);
-  while (!Serial) delay(10);
   delay(3000);
   Output = 0;
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);

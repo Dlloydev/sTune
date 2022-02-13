@@ -1,5 +1,7 @@
 /*****************************************************************************
-  sTune Get All Tunings Example (MAX31856, PTC Heater and SSR)
+  sTune Get All Tunings Example (MAX31856, PTC Heater / SSR / Software PWM)
+  This runs a fast inflection point test to determine tuning parameters.
+  Open serial printer to view test progress and results.
   Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX31856_PTC_SSR
   ****************************************************************************/
 #include <Adafruit_MAX31856.h>
@@ -12,13 +14,13 @@ const uint8_t drdyPin = 5;
 
 // user settings
 uint32_t settleTimeSec = 10;
-uint32_t testTimeSec = 500;
+uint32_t testTimeSec = 500;  // sample interval = testTimeSec / samples
 const uint16_t samples = 500;
-const float inputSpan = 220;
+const float inputSpan = 200;
 const float outputSpan = 1000;
 float outputStart = 0;
 float outputStep = 50;
-float tempLimit = 100;
+float tempLimit = 150;
 
 // variables
 float Input, Output;
@@ -30,7 +32,6 @@ void setup() {
   pinMode(drdyPin, INPUT);
   pinMode(relayPin, OUTPUT);
   Serial.begin(115200);
-  while (!Serial) delay(10);
   delay(3000);
   Output = 0;
   if (!maxthermo.begin()) {

@@ -15,7 +15,7 @@ const float inputSpan = 150;
 const float outputSpan = 1000;
 float outputStart = 0;
 float outputStep = 50;
-float tempLimit = 75;
+float tempLimit = 90;
 
 // variables
 float Input, Output;

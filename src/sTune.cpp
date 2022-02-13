@@ -1,5 +1,5 @@
 /****************************************************************************************
-   sTune Library for Arduino - Version 2.3.3
+   sTune Library for Arduino - Version 2.4.0
    by dlloydev https://github.com/Dlloydev/sTune
    Licensed under the MIT License.
 
@@ -155,15 +155,15 @@ uint8_t sTune::Run() {
             if (ipcount) {
               ipCount = 0;
               slopeIp = pvTangent;
-              ipUs = us;
-              pvIp = pvAvg;
             }
             ipCount++;
-            if ((_action == directIP || _action == reverseIP) && (ipCount == ((int)(_samples / 16)))) { // reached inflection point
+            if ((_action == directIP || _action == reverseIP) && (ipCount == ((uint16_t)(_samples / 16)))) { // reached inflection point
               sampleCount = _samples;
+              ipUs = us;
+              pvIp = pvAvg;
 
               // apparent pvMax  Re: "Step response with arbitrary initial conditions" https://en.wikipedia.org/wiki/Time_constant
-              pvMax = pvIp + slopeIp * kexp;
+              pvMax = pvIp + (slopeIp * kexp);
 
               //apparent tangent from pvStart to pvMax crossing points
               _Tu = (((pvMax - pvStart) / slopeIp) * _tangentPeriodUs * 0.000001f) - _td;
@@ -171,29 +171,27 @@ uint8_t sTune::Run() {
 
             if (_action == direct5T || _action == reverse5T) { // continue testing to maximum input
               if (sampleCount >= _samples - 1) sampleCount = _samples - 2;
-              if (us > _testTimeSec * 100000) {    // 10% of testTimeSec has elapsed
+              if (us > _testTimeSec * 100000) {  // 10% of testTimeSec has elapsed
                 if (pvAvg > pvPk) {
-                  pvPk = pvAvg + 2 * pvAvgRes;        // set a new boosted peak
-                  pvPkCount = 0;                   // reset the "below peak" counter
+                  pvPk = pvAvg + (_bufferSize * 0.2f * pvAvgRes); // set a new boosted peak
+                  pvPkCount = 0;  // reset the "below peak" counter
                 } else {
-                  pvPkCount++;                     // count up while pvAvg is below the boosted peak
+                  pvPkCount++;  // count up while pvAvg is below the boosted peak
                 }
-                if (pvPkCount == ((uint16_t)(1.2 * _bufferSize))) {  // test done (assume 3.5τ)
+                if (pvPkCount == ((uint16_t)(1.2 * _bufferSize))) {  // test done
                   pvPkCount++;
                   sampleCount = _samples;
-                  pvMax = pvAvg + (pvInst - pvStart) * 0.03f;  // add 3% to pvMax
-                  _Tu = (us * 0.000001f * 0.286f) - _td;       // multiply by 0.286 for τ
+                  pvMax = pvAvg + (pvInst - pvStart) * 0.05f;  // assume 3τ, so increase pvMax by 5%
+                  _Tu = (us * 1.6667 * 0.000001f * 0.286f) - _td; // scale us to 5τ in seconds, then multiply by 0.286 for τ
                 }
               }
             }
 
             if (sampleCount == _samples) {  // testing complete
+              _R = _td / _Tu;
 
-              _TuMin = _Tu * 0.1667; // units in minutes
-              _tdMin = _td * 0.1667; // units in minutes
-              _R = _tdMin / _TuMin;
-              _Ku =  fabs(((pvMax - pvStart) / _inputSpan) / ((_outputStep - _outputStart) / _outputSpan)); // process gain
-              _Ko = ((_outputStep - _outputStart) / pvMax) * (_TuMin / _tdMin); // process gain
+              // process gain
+              _Ku =  fabs(((pvMax - pvStart) / _inputSpan) / ((_outputStep - _outputStart) / _outputSpan));
 
               _kp = sTune::GetKp();
               _ki = sTune::GetKi();
@@ -338,9 +336,9 @@ void sTune::printTunings() {
   else if (_tuningMethod == NoOvershoot_PI) Serial.println(F("NoOvershoot_PI"));
   else if (_tuningMethod == CohenCoon_PI) Serial.println(F("CohenCoon_PI"));
   else Serial.println(F("Mixed_PI"));
-  Serial.print(F("  Kp: ")); Serial.println(sTune::GetKp());
-  Serial.print(F("  Ki: ")); Serial.print(sTune::GetKi()); Serial.print(F("  Ti: ")); Serial.println(sTune::GetTi());
-  Serial.print(F("  Kd: ")); Serial.print(sTune::GetKd()); Serial.print(F("  Td: ")); Serial.println(sTune::GetTd());
+  Serial.print(F("  Kp: ")); Serial.println(sTune::GetKp(), 3);
+  Serial.print(F("  Ki: ")); Serial.print(sTune::GetKi(), 3); Serial.print(F("  Ti: ")); Serial.println(sTune::GetTi(), 3);
+  Serial.print(F("  Kd: ")); Serial.print(sTune::GetKd(), 3); Serial.print(F("  Td: ")); Serial.println(sTune::GetTd(), 3);
   Serial.println();
 }
 
@@ -403,15 +401,17 @@ void sTune::GetAutoTunings(float * kp, float * ki, float * kd) {
   *kd = _kd;
 }
 
+// https://blog.opticontrols.com/archives/477
+
 float sTune::GetKp() {
-  float znPid = (0.6f * _TuMin) / (_Ku * _tdMin);
-  float doPid = (0.66f * _TuMin) / (_Ko * _tdMin);
-  float noPid = (0.6f / _Ku) * (_TuMin / _tdMin);
-  float ccPid = _Ko * (1.33f + (_R / 4.0f));
-  float znPi = (0.45f * _TuMin) / (_Ku * _tdMin);
-  float doPi = (0.495f * _TuMin) / (_Ko * _tdMin);
-  float noPi = (0.35f / _Ku) * (_TuMin / _tdMin);
-  float ccPi = _Ko * (0.9f + (_R / 12.0f));
+  float znPid = ((1.2f * _Tu) / (_Ku * _td)) / 2;
+  float doPid = (0.66f * _Tu) / (_Ku * _td);
+  float noPid = (0.6f / _Ku) * (_Tu / _td);
+  float ccPid = _Ku * (1.33f + (_R / 4.0f));
+  float znPi = ((0.9f * _Tu) / (_Ku * _td)) / 2;
+  float doPi = (0.495f * _Tu) / (_Ku * _td);
+  float noPi = (0.35f / _Ku) * (_Tu / _td);
+  float ccPi = _Ku * (0.9f + (_R / 12.0f));
   if (_tuningMethod == ZN_PID)                _kp = znPid;
   else if (_tuningMethod == DampedOsc_PID)    _kp = doPid;
   else if (_tuningMethod == NoOvershoot_PID)  _kp = noPid;
@@ -426,14 +426,14 @@ float sTune::GetKp() {
 }
 
 float sTune::GetKi() {
-  float znPid = 1 / (2.0f * _tdMin);
-  float doPid = 1 / (_TuMin / 3.6f);
-  float noPid = 1 / (_TuMin);
-  float ccPid = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
-  float znPi = 1 / (3.3333f * _tdMin);
-  float doPi = 1 / (_TuMin / 2.6f);
-  float noPi = 1 / (1.2f * _TuMin);
-  float ccPi = 1 / (_tdMin * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
+  float znPid = 1 / (2.0f * _td);
+  float doPid = 1 / (_Tu / 3.6f);
+  float noPid = 1 / (_Tu);
+  float ccPid = 1 / (_td * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
+  float znPi = 1 / (3.3333f * _td);
+  float doPi = 1 / (_Tu / 2.6f);
+  float noPi = 1 / (1.2f * _Tu);
+  float ccPi = 1 / (_td * (30.0f + (3.0f * _R)) / (9.0f + (20.0f * _R)));
 
   if (_tuningMethod == ZN_PID)                _ki = znPid;
   else if (_tuningMethod == DampedOsc_PID)    _ki = doPid;
@@ -449,10 +449,10 @@ float sTune::GetKi() {
 }
 
 float sTune::GetKd() {
-  float znPid = 1 / (0.5f * _tdMin);
-  float doPid = 1 / (_TuMin / 9.0f);
-  float noPid = 1 / (0.5f * _tdMin);
-  float ccPid = 1 / ((4.0f * _tdMin) / (11.0f + (2.0f * _R)));
+  float znPid = 1 / (0.5f * _td);
+  float doPid = 1 / (_Tu / 9.0f);
+  float noPid = 1 / (0.5f * _td);
+  float ccPid = 1 / ((4.0f * _td) / (11.0f + (2.0f * _R)));
   if (_tuningMethod == ZN_PID)                _kd = znPid;
   else if (_tuningMethod == DampedOsc_PID)    _kd = doPid;
   else if (_tuningMethod == NoOvershoot_PID)  _kd = noPid;
@@ -463,7 +463,7 @@ float sTune::GetKd() {
 }
 
 float sTune::GetTi() {
-  return 1.0f / _ki;
+  return _kp / _ki;
 }
 
 float sTune::GetTd() {
@@ -471,7 +471,9 @@ float sTune::GetTd() {
       _tuningMethod == DampedOsc_PID ||
       _tuningMethod == NoOvershoot_PID ||
       _tuningMethod == CohenCoon_PID ||
-      _tuningMethod == Mixed_PID) return 1.0f / _kd;
+      _tuningMethod == Mixed_PID) {
+    return _kp / _kd;
+  }
   else return 0;
 }
 
@@ -509,8 +511,11 @@ float sTune::softPwm(const uint8_t relayPin, float input, float output, float se
   }
   // SSR optimum AC half-cycle controller
   static float optimumOutput;
-  if (!debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 8;
-  else if (!debounce && setpoint > 0 && input < setpoint) optimumOutput = output + 8;
+  static bool reachedSetpoint;
+
+  if (input > setpoint) reachedSetpoint = true;
+  if (reachedSetpoint && !debounce && setpoint > 0 && input > setpoint) optimumOutput = output - 8;
+  else if (reachedSetpoint && !debounce && setpoint > 0 && input < setpoint) optimumOutput = output + 8;
   else  optimumOutput = output;
   if (optimumOutput < 0) optimumOutput = 0;
 

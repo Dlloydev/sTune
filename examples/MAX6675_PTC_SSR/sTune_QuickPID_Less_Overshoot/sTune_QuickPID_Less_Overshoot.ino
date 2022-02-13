@@ -1,8 +1,9 @@
 /***************************************************************************
   sTune QuickPID Example (MAX6675, PTC Heater / SSR / Software PWM)
   This sketch does on-the-fly tuning and PID control. Tuning parameters are
-  quickly determined and applied during temperature ramp-up to setpoint.
-  View results using serial plotter.
+  quickly determined and applied. During the initial temperature ramp-up,
+  the output is reduced just prior to the input reaching setpoint. This
+  reduces overshoot. View results using serial plotter.
   Reference: https://github.com/Dlloydev/sTune/wiki/Examples_MAX6675_PTC_SSR
   ***************************************************************************/
 #include <max6675.h>
@@ -26,6 +27,7 @@ float outputStart = 0;
 float outputStep = 50;
 float tempLimit = 150;
 uint8_t debounce = 1;
+bool startup = true;
 
 // variables
 float Input, Output, Setpoint = 80, Kp, Ki, Kd;
@@ -65,6 +67,12 @@ void loop() {
       break;
 
     case tuner.runPid: // active once per sample after tunings
+      if (startup && Input > Setpoint - 5) { // reduce overshoot
+        startup = false;
+        Output -= 9;
+        myPID.SetMode(myPID.Control::manual);
+        myPID.SetMode(myPID.Control::automatic);
+      }
       Input = module.readCelsius();
       myPID.Compute();
       tuner.plotter(Input, optimumOutput, Setpoint, 0.5f, 3);

@@ -61,7 +61,7 @@ void loop() {
     case tuner.runPid: // active once per sample after tunings
       Input = analogRead(inputPin) * 0.322265625 - 50.0; // get degC (using 3.3v AREF)
       myPID.Compute();
-      tuner.plotter(Input, Output * 0.1, Setpoint, 1, 3);
+      tuner.plotter(Input, Output, Setpoint, 0.1f, 3);
       break;
   }
 }

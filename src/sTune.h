@@ -57,10 +57,9 @@ class sTune {  // Inflection Point Autotuner
     float *_input, *_output, _settlePeriodUs, _samplePeriodUs, _tangentPeriodUs;
     float  _inputSpan, _outputSpan, _outputStart, _outputStep;
     float eStop, pvInst, pvAvg, pvIp, pvMax, pvPk, pvInstRes, pvAvgRes, slopeIp, pvTangent, pvTangentPrev = 0, pvStart;
-    float _kp, _ki, _kd, _Ku, _Tu, _td, _R, _Ko, _TuMin, _tdMin;
+    float _kp, _ki, _kd, _Ku, _Tu, _td, _R, _Ko;
 
-    uint8_t ipCount = 0, plotCount = 0, eStopAbort = 0;
-    uint16_t _bufferSize, _samples, sampleCount = 0, pvPkCount = 0;
+    uint16_t _bufferSize, _samples, sampleCount = 0, pvPkCount = 0, ipCount = 0, plotCount = 0, eStopAbort = 0;
     uint32_t _settleTimeSec, _testTimeSec, usPrev = 0, settlePrev = 0, usStart, us, ipUs;
 
     const float kexp = 4.3004; // (1 / exp(-1)) / (1 - exp(-1))
