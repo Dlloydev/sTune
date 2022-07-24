@@ -160,7 +160,7 @@ float controllability = _Tu / _td + epsilon;
 
 #### References
 
-- [Comparison of PID Controller Tuning Methods](http://www.ie.tec.ac.cr/einteriano/analisis/clase/13.1.Zomorrodi_Shahrokhi_PID_Tunning_Comparison.pdf)
+- [Comparison of PID Controller Tuning Methods](http://maulana.lecture.ub.ac.id/files/2014/12/Jurnal-PID_Tunning_Comparison.pdf)
 - [Ziegler-Nichols Open-Loop Tuning Rules](https://blog.opticontrols.com/archives/477)
 - [Inflection point](https://en.wikipedia.org/wiki/Inflection_point)
 - [Time Constant (Re: Step response with arbitrary initial conditions)](https://en.wikipedia.org/wiki/Time_constant)
