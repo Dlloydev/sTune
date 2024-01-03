@@ -6,11 +6,11 @@
   Open the serial plotter to view the graphical results.
   *****************************************************************/
 #include <sTune.h>
-#include <PID_v1.h>
+#include <PID_v2.h>
 
 // pins
 const uint8_t inputPin = 0;
-const uint8_t relayPin = 3;
+const uint8_t PWMPIN = 3;
 
 // user settings
 uint32_t settleTimeSec = 10;
@@ -20,7 +20,7 @@ const float inputSpan = 150;
 const float outputSpan = 1000;
 float outputStart = 0;
 float outputStep = 300;
-float tempLimit = 90;
+float voltageLimit = 14.8;
 uint8_t debounce = 1;
 
 // variables
@@ -31,13 +31,13 @@ sTune tuner = sTune(&Input, &Output, tuner.ZN_PID, tuner.directIP, tuner.printOF
 PID myPID(&input, &output, &setpoint, 0, 0, 0, P_ON_M, DIRECT);
 
 void setup() {
-  analogReference(EXTERNAL); // 3.3V
-  pinMode(relayPin, OUTPUT);
-  Serial.begin(115200);
+  analogReference(PWMPIN); 
+  //pinMode(PWMPIN, OUTPUT);
+  Serial.begin(9600);
   while (!Serial) delay(10);
   delay(3000);
   tuner.Configure(inputSpan, outputSpan, outputStart, outputStep, testTimeSec, settleTimeSec, samples);
-  tuner.SetEmergencyStop(tempLimit);
+  tuner.SetEmergencyStop(voltageLimit);
 }
 
 void loop() {
